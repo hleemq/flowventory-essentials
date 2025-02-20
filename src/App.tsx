@@ -13,6 +13,8 @@ import Products from "./pages/Products";
 import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 
+const queryClient = new QueryClient();
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
   
