@@ -30,7 +30,7 @@ const translations = {
     switchLanguage: "Changer de langue"
   },
   ar: {
-    title: "مرحباً بك في ستوك فلو",
+    welcome: "مرحباً بك في ستوك فلو",
     subtitle: "حل إدارة المخزون الحديث الخاص بك",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
