@@ -3,24 +3,39 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "./ui/button";
-import { LogOut, LayoutDashboard, Package, Globe } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Globe, ShoppingCart, Users, Settings, List, Warehouse } from "lucide-react";
 
 const translations = {
   en: {
     dashboard: "Dashboard",
-    products: "Products",
+    inventory: "Inventory",
+    items: "Items",
+    warehouses: "Warehouses",
+    orders: "Orders",
+    customers: "Customers",
+    settings: "Settings",
     logout: "Logout",
     switchLanguage: "Switch Language"
   },
   fr: {
     dashboard: "Tableau de bord",
-    products: "Produits",
+    inventory: "Inventaire",
+    items: "Articles",
+    warehouses: "Entrepôts",
+    orders: "Commandes",
+    customers: "Clients",
+    settings: "Paramètres",
     logout: "Déconnexion",
     switchLanguage: "Changer de langue"
   },
   ar: {
     dashboard: "لوحة التحكم",
-    products: "المنتجات",
+    inventory: "المخزون",
+    items: "العناصر",
+    warehouses: "المستودعات",
+    orders: "الطلبات",
+    customers: "العملاء",
+    settings: "الإعدادات",
     logout: "تسجيل الخروج",
     switchLanguage: "تغيير اللغة"
   }
@@ -39,6 +54,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     setLanguage(langs[nextIndex]);
   };
 
+  const isInventoryActive = location.pathname.startsWith('/inventory');
+  
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50">
@@ -54,14 +71,73 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                 {t.dashboard}
               </Link>
             </Button>
+            
+            {/* Inventory Section with Subsections */}
+            <div className="relative group">
+              <Button
+                variant={isInventoryActive ? "default" : "ghost"}
+                asChild
+                className="gap-2"
+              >
+                <Link to="/inventory">
+                  <Package className="h-4 w-4" />
+                  {t.inventory}
+                </Link>
+              </Button>
+              <div className="absolute left-0 hidden group-hover:block min-w-[150px] p-2 mt-1 bg-popover rounded-md shadow-lg border">
+                <Button
+                  variant="ghost"
+                  asChild
+                  className="w-full justify-start gap-2 mb-1"
+                >
+                  <Link to="/inventory/items">
+                    <List className="h-4 w-4" />
+                    {t.items}
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  asChild
+                  className="w-full justify-start gap-2"
+                >
+                  <Link to="/inventory/warehouses">
+                    <Warehouse className="h-4 w-4" />
+                    {t.warehouses}
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
             <Button
-              variant={location.pathname === "/products" ? "default" : "ghost"}
+              variant={location.pathname === "/orders" ? "default" : "ghost"}
               asChild
               className="gap-2"
             >
-              <Link to="/products">
-                <Package className="h-4 w-4" />
-                {t.products}
+              <Link to="/orders">
+                <ShoppingCart className="h-4 w-4" />
+                {t.orders}
+              </Link>
+            </Button>
+
+            <Button
+              variant={location.pathname === "/customers" ? "default" : "ghost"}
+              asChild
+              className="gap-2"
+            >
+              <Link to="/customers">
+                <Users className="h-4 w-4" />
+                {t.customers}
+              </Link>
+            </Button>
+
+            <Button
+              variant={location.pathname === "/settings" ? "default" : "ghost"}
+              asChild
+              className="gap-2"
+            >
+              <Link to="/settings">
+                <Settings className="h-4 w-4" />
+                {t.settings}
               </Link>
             </Button>
           </div>
