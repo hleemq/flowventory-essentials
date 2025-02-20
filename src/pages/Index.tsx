@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Globe, ArrowRight } from "lucide-react";
+import { Globe, ArrowRight, UserPlus } from "lucide-react";
 
 const translations = {
   en: {
@@ -15,6 +15,8 @@ const translations = {
     email: "Email",
     password: "Password",
     login: "Login",
+    signup: "Sign Up",
+    or: "or",
     switchLanguage: "Switch Language"
   },
   fr: {
@@ -23,14 +25,18 @@ const translations = {
     email: "Email",
     password: "Mot de passe",
     login: "Connexion",
+    signup: "S'inscrire",
+    or: "ou",
     switchLanguage: "Changer de langue"
   },
   ar: {
-    welcome: "مرحباً بك في ستوك فلو",
+    title: "مرحباً بك في ستوك فلو",
     subtitle: "حل إدارة المخزون الحديث الخاص بك",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
     login: "تسجيل الدخول",
+    signup: "إنشاء حساب",
+    or: "أو",
     switchLanguage: "تغيير اللغة"
   }
 };
@@ -40,6 +46,7 @@ const Index = () => {
   const { language, setLanguage } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLogin, setIsLogin] = useState(true);
 
   const t = translations[language];
 
@@ -96,10 +103,31 @@ const Index = () => {
                 className="glass"
               />
             </div>
-            <Button type="submit" className="w-full gap-2">
-              {t.login}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+            <div className="space-y-2">
+              <Button type="submit" className="w-full gap-2">
+                {isLogin ? t.login : t.signup}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    {t.or}
+                  </span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setIsLogin(!isLogin)}
+              >
+                {!isLogin ? t.login : t.signup}
+                {!isLogin ? <ArrowRight className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+              </Button>
+            </div>
           </form>
         </Card>
       </div>
