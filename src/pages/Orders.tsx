@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -45,6 +44,7 @@ const translations = {
     exportOrder: "Export Order",
     createOrder: "Create Order",
     completed: "Completed",
+    cancel: "Cancel",
   },
   fr: {
     title: "Commandes",
@@ -68,6 +68,7 @@ const translations = {
     exportOrder: "Exporter la commande",
     createOrder: "Créer la commande",
     completed: "Terminée",
+    cancel: "Annuler",
   },
   ar: {
     title: "الطلبات",
@@ -91,6 +92,7 @@ const translations = {
     exportOrder: "تصدير الطلب",
     createOrder: "إنشاء الطلب",
     completed: "مكتمل",
+    cancel: "إلغاء",
   }
 };
 
