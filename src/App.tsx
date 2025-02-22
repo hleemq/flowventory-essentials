@@ -21,13 +21,33 @@ import { useAuth } from "./contexts/AuthContext";
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    // Return null or a loading spinner while checking auth state
+    return null;
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
   return <AppLayout>{children}</AppLayout>;
+};
+
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    // Return null or a loading spinner while checking auth state
+    return null;
+  }
+  
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 const App = () => (
@@ -39,7 +59,14 @@ const App = () => (
             <Toaster />
             <Sonner />
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route 
+                path="/" 
+                element={
+                  <PublicRoute>
+                    <Index />
+                  </PublicRoute>
+                } 
+              />
               <Route
                 path="/dashboard"
                 element={
