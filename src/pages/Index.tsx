@@ -14,6 +14,8 @@ const translations = {
     subtitle: "Your modern inventory management solution",
     email: "Email",
     password: "Password",
+    firstName: "First Name",
+    lastName: "Last Name",
     login: "Login",
     signup: "Sign Up",
     or: "or",
@@ -24,6 +26,8 @@ const translations = {
     subtitle: "Votre solution moderne de gestion des stocks",
     email: "Email",
     password: "Mot de passe",
+    firstName: "Prénom",
+    lastName: "Nom",
     login: "Connexion",
     signup: "S'inscrire",
     or: "ou",
@@ -34,6 +38,8 @@ const translations = {
     subtitle: "حل إدارة المخزون الحديث الخاص بك",
     email: "البريد الإلكتروني",
     password: "كلمة المرور",
+    firstName: "الاسم الأول",
+    lastName: "اسم العائلة",
     login: "تسجيل الدخول",
     signup: "إنشاء حساب",
     or: "أو",
@@ -42,10 +48,12 @@ const translations = {
 };
 
 const Index = () => {
-  const { login } = useAuth();
+  const { login, signup } = useAuth();
   const { language, setLanguage } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [isLogin, setIsLogin] = useState(true);
 
   const t = translations[language];
@@ -59,7 +67,11 @@ const Index = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
+    if (isLogin) {
+      await login(email, password);
+    } else {
+      await signup(email, password, firstName, lastName);
+    }
   };
 
   return (
@@ -81,6 +93,30 @@ const Index = () => {
 
         <Card className="p-6 glass">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">{t.firstName}</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required={!isLogin}
+                    className="glass"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">{t.lastName}</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required={!isLogin}
+                    className="glass"
+                  />
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">{t.email}</Label>
               <Input
@@ -122,7 +158,11 @@ const Index = () => {
                 type="button"
                 variant="outline"
                 className="w-full gap-2"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setFirstName("");
+                  setLastName("");
+                }}
               >
                 {!isLogin ? t.login : t.signup}
                 {!isLogin ? <ArrowRight className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
