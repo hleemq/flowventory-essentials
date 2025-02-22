@@ -10,8 +10,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { LogOut, LayoutDashboard, Package, Globe, ShoppingCart, Users, Settings, List, Warehouse, Menu, X } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Globe, ShoppingCart, Users, Settings, List, Warehouse, Menu } from "lucide-react";
 import { useState } from "react";
+import Notifications from "./Notifications";
 
 const translations = {
   en: {
@@ -176,14 +177,17 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                 <div className="flex flex-col gap-2">
                   <NavItems />
                   <div className="mt-auto pt-4 border-t">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-2"
-                      onClick={handleLanguageSwitch}
-                    >
-                      <Globe className="h-4 w-4" />
-                      {t.switchLanguage}
-                    </Button>
+                    <div className="flex items-center justify-between mb-2">
+                      <Notifications />
+                      <Button
+                        variant="ghost"
+                        className="gap-2"
+                        onClick={handleLanguageSwitch}
+                      >
+                        <Globe className="h-4 w-4" />
+                        {t.switchLanguage}
+                      </Button>
+                    </div>
                     <Button
                       variant="ghost"
                       className="w-full justify-start gap-2 text-destructive hover:text-destructive"
@@ -209,7 +213,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="flex-1" />
           
           {/* Desktop Actions */}
-          <div className="hidden md:flex gap-2">
+          <div className="hidden md:flex gap-2 items-center">
+            <Notifications />
             <Button
               variant="ghost"
               className="gap-2"
@@ -235,4 +240,3 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default AppLayout;
-
