@@ -1,4 +1,3 @@
-
 import {
   Sheet,
   SheetContent,
@@ -7,7 +6,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Globe, LogOut } from "lucide-react";
+import { Menu, Languages, LogOutIcon } from "lucide-react";
 import NavItems from "./NavItems";
 import Notifications from "../Notifications";
 
@@ -64,22 +63,25 @@ const MobileMenu = ({
                 size="icon"
                 onClick={onLanguageSwitch}
                 title={t.switchLanguage}
+                className="relative group"
               >
-                <Globe className="h-4 w-4" />
-                <span className="ml-1 text-xs font-medium">{currentLanguage.toUpperCase()}</span>
+                <Languages className="h-5 w-5 transition-transform group-hover:scale-110" />
+                <span className="absolute -bottom-1 right-0 text-[10px] font-medium bg-primary text-primary-foreground rounded-full px-1">
+                  {currentLanguage.toUpperCase()}
+                </span>
               </Button>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="w-full justify-start text-destructive hover:text-destructive"
+              className="w-full justify-start text-destructive hover:text-destructive group"
               onClick={() => {
                 onOpenChange(false);
                 onLogout();
               }}
               title={t.logout}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOutIcon className="h-5 w-5 transition-transform group-hover:scale-110" />
             </Button>
           </div>
         </div>

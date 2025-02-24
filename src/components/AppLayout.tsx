@@ -2,7 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "./ui/button";
-import { Globe, LogOut } from "lucide-react";
+import { Languages, BellRing, LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import NavItems from "./navigation/NavItems";
 import MobileMenu from "./navigation/MobileMenu";
@@ -90,22 +90,22 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               variant="ghost"
               size="icon"
               onClick={handleLanguageSwitch}
-              className="relative"
+              className="relative group"
               title={t.switchLanguage}
             >
-              <Globe className="h-4 w-4" />
-              <span className="absolute -bottom-1 right-0 text-[10px] font-medium">
+              <Languages className="h-5 w-5 transition-transform group-hover:scale-110" />
+              <span className="absolute -bottom-1 right-0 text-[10px] font-medium bg-primary text-primary-foreground rounded-full px-1">
                 {language.toUpperCase()}
               </span>
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="text-destructive hover:text-destructive"
+              className="text-destructive hover:text-destructive group"
               onClick={logout}
               title={t.logout}
             >
-              <LogOut className="h-4 w-4" />
+              <LogOutIcon className="h-5 w-5 transition-transform group-hover:scale-110" />
             </Button>
           </div>
         </div>

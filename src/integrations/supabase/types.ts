@@ -336,29 +336,38 @@ export type Database = {
       }
       settings: {
         Row: {
+          backup_frequency: string | null
           created_at: string | null
           currency: string
           id: string
           language: string
+          last_backup: string | null
           organization_id: string | null
+          theme: string | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          backup_frequency?: string | null
           created_at?: string | null
           currency: string
           id?: string
           language: string
+          last_backup?: string | null
           organization_id?: string | null
+          theme?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          backup_frequency?: string | null
           created_at?: string | null
           currency?: string
           id?: string
           language?: string
+          last_backup?: string | null
           organization_id?: string | null
+          theme?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -378,6 +387,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      system_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
