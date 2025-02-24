@@ -1,4 +1,3 @@
-<lov-codelov-code>
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -336,4 +335,4 @@ const Settings = () => {
 };
 
 export default Settings;
-</lov-code>
+
