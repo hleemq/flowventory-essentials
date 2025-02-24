@@ -15,13 +15,20 @@ type MobileMenuProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   translations: {
+    dashboard: string;
+    inventory: string;
+    items: string;
+    warehouses: string;
+    orders: string;
+    customers: string;
+    settings: string;
     menu: string;
     switchLanguage: string;
     logout: string;
-    [key: string]: string;
   };
   onLanguageSwitch: () => void;
   onLogout: () => void;
+  currentLanguage: string;
 };
 
 const MobileMenu = ({
@@ -30,6 +37,7 @@ const MobileMenu = ({
   translations: t,
   onLanguageSwitch,
   onLogout,
+  currentLanguage,
 }: MobileMenuProps) => {
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
@@ -53,23 +61,25 @@ const MobileMenu = ({
               <Notifications />
               <Button
                 variant="ghost"
-                className="gap-2"
+                size="icon"
                 onClick={onLanguageSwitch}
+                title={t.switchLanguage}
               >
                 <Globe className="h-4 w-4" />
-                {t.switchLanguage}
+                <span className="ml-1 text-xs font-medium">{currentLanguage.toUpperCase()}</span>
               </Button>
             </div>
             <Button
               variant="ghost"
-              className="w-full justify-start gap-2 text-destructive hover:text-destructive"
+              size="icon"
+              className="w-full justify-start text-destructive hover:text-destructive"
               onClick={() => {
                 onOpenChange(false);
                 onLogout();
               }}
+              title={t.logout}
             >
               <LogOut className="h-4 w-4" />
-              {t.logout}
             </Button>
           </div>
         </div>

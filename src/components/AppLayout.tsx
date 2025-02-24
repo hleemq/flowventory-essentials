@@ -72,6 +72,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               translations={t}
               onLanguageSwitch={handleLanguageSwitch}
               onLogout={logout}
+              currentLanguage={language}
             />
           </div>
 
@@ -87,19 +88,24 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
             <Notifications />
             <Button
               variant="ghost"
-              className="gap-2"
+              size="icon"
               onClick={handleLanguageSwitch}
+              className="relative"
+              title={t.switchLanguage}
             >
               <Globe className="h-4 w-4" />
-              {t.switchLanguage}
+              <span className="absolute -bottom-1 right-0 text-[10px] font-medium">
+                {language.toUpperCase()}
+              </span>
             </Button>
             <Button
               variant="ghost"
-              className="gap-2 text-destructive hover:text-destructive"
+              size="icon"
+              className="text-destructive hover:text-destructive"
               onClick={logout}
+              title={t.logout}
             >
               <LogOut className="h-4 w-4" />
-              {t.logout}
             </Button>
           </div>
         </div>
