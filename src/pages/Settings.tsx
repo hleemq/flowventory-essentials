@@ -16,82 +16,43 @@ import { toast } from "sonner";
 import {
   Download,
   Upload,
-  UserPlus,
-  Building,
-  Users,
-  ScrollText,
-  Paintbrush,
-  Coins
+  Coins,
+  ScrollText
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 const translations = {
   en: {
     title: "Settings",
     currency: "Currency",
-    backup: "Backup & Restore",
-    account: "Account Management",
+    currencySettings: "Currency Settings",
+    backupSettings: "Backup & Restore",
+    systemLogs: "System Logs",
     download: "Download Backup",
     restore: "Restore Data",
-    newUser: "Create New User",
-    addToOrg: "Add User to Organization",
-    createOrg: "Create Organization",
-    logs: "System Logs",
-    customize: "Customize Pages",
-    systemLogs: "System Logs",
-    currencySettings: "Currency Settings",
-    backupSettings: "Backup Settings",
-    accountSettings: "Account Settings",
-    customization: "Customization",
-    saveChanges: "Save Changes",
     loading: "Loading...",
+    noLogs: "No system logs found"
   },
   fr: {
     title: "Paramètres",
     currency: "Devise",
-    backup: "Sauvegarde & Restauration",
-    account: "Gestion du Compte",
+    currencySettings: "Paramètres de Devise",
+    backupSettings: "Sauvegarde & Restauration",
+    systemLogs: "Journaux Système",
     download: "Télécharger la Sauvegarde",
     restore: "Restaurer les Données",
-    newUser: "Créer un Nouvel Utilisateur",
-    addToOrg: "Ajouter à l'Organisation",
-    createOrg: "Créer une Organisation",
-    logs: "Journaux Système",
-    customize: "Personnaliser les Pages",
-    systemLogs: "Journaux Système",
-    currencySettings: "Paramètres de Devise",
-    backupSettings: "Paramètres de Sauvegarde",
-    accountSettings: "Paramètres du Compte",
-    customization: "Personnalisation",
-    saveChanges: "Enregistrer",
     loading: "Chargement...",
+    noLogs: "Aucun journal système trouvé"
   },
   ar: {
     title: "الإعدادات",
     currency: "العملة",
-    backup: "النسخ الاحتياطي والاستعادة",
-    account: "إدارة الحساب",
+    currencySettings: "إعدادات العملة",
+    backupSettings: "النسخ الاحتياطي والاستعادة",
+    systemLogs: "سجلات النظام",
     download: "تحميل النسخة الاحتياطية",
     restore: "استعادة البيانات",
-    newUser: "إنشاء مستخدم جديد",
-    addToOrg: "إضافة إلى المنظمة",
-    createOrg: "إنشاء منظمة",
-    logs: "سجلات النظام",
-    customize: "تخصيص الصفحات",
-    systemLogs: "سجلات النظام",
-    currencySettings: "إعدادات العملة",
-    backupSettings: "إعدادات النسخ الاحتياطي",
-    accountSettings: "إعدادات الحساب",
-    customization: "التخصيص",
-    saveChanges: "حفظ التغييرات",
     loading: "جاري التحميل...",
+    noLogs: "لم يتم العثور على سجلات النظام"
   }
 };
 
@@ -102,29 +63,59 @@ type SettingsType = {
   id: string;
 };
 
+type SystemLogType = {
+  id: string;
+  action: string;
+  created_at: string;
+};
+
 const Settings = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
   const t = translations[language];
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [systemLogs, setSystemLogs] = useState<SystemLogType[]>([]);
 
   useEffect(() => {
-    fetchSettings();
-    fetchSystemLogs();
-  }, []);
+    if (user) {
+      fetchSettings();
+      fetchSystemLogs();
+    }
+  }, [user]);
 
   const fetchSettings = async () => {
     try {
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .single();
+        .eq('user_id', user?.id)
+        .maybeSingle();
 
       if (error) throw error;
-      setSettings(data);
+
+      if (!data) {
+        // Create default settings if none exist
+        const { data: newSettings, error: createError } = await supabase
+          .from('settings')
+          .insert([
+            {
+              user_id: user?.id,
+              currency: 'USD',
+              backup_frequency: 'weekly',
+              theme: 'system'
+            }
+          ])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        setSettings(newSettings);
+      } else {
+        setSettings(data);
+      }
     } catch (error) {
+      console.error('Error fetching settings:', error);
       toast.error("Failed to load settings");
     } finally {
       setLoading(false);
@@ -132,16 +123,18 @@ const Settings = () => {
   };
 
   const fetchSystemLogs = async () => {
-    const { data, error } = await supabase
-      .from('system_logs')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    try {
+      const { data, error } = await supabase
+        .from('system_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-    if (error) {
-      toast.error("Failed to load system logs");
-    } else {
+      if (error) throw error;
       setSystemLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching system logs:', error);
+      toast.error("Failed to load system logs");
     }
   };
 
@@ -154,8 +147,19 @@ const Settings = () => {
 
       if (error) throw error;
       setSettings(prev => prev ? { ...prev, currency: newCurrency } : null);
+      
+      // Log the currency update
+      await supabase
+        .from('system_logs')
+        .insert([{
+          action: `Currency updated to ${newCurrency}`,
+          user_id: user?.id
+        }]);
+
       toast.success("Currency updated successfully");
+      fetchSystemLogs(); // Refresh logs
     } catch (error) {
+      console.error('Error updating currency:', error);
       toast.error("Failed to update currency");
     }
   };
@@ -177,14 +181,24 @@ const Settings = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `stockflow_backup_${new Date().toISOString()}.json`;
+      a.download = `backup_${new Date().toISOString()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      // Log the backup
+      await supabase
+        .from('system_logs')
+        .insert([{
+          action: 'Data backup downloaded',
+          user_id: user?.id
+        }]);
+
       toast.success("Backup downloaded successfully");
+      fetchSystemLogs(); // Refresh logs
     } catch (error) {
+      console.error('Error downloading backup:', error);
       toast.error("Failed to download backup");
     }
   };
@@ -194,7 +208,7 @@ const Settings = () => {
   }
 
   return (
-    <div className="container py-8 space-y-8 animate-in">
+    <div className="container py-8 space-y-8">
       <h1 className="text-4xl font-bold">{t.title}</h1>
 
       <div className="grid gap-8 md:grid-cols-2">
@@ -234,45 +248,6 @@ const Settings = () => {
               <Download className="mr-2 h-4 w-4" />
               {t.download}
             </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  <Upload className="mr-2 h-4 w-4" />
-                  {t.restore}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t.restore}</DialogTitle>
-                  <DialogDescription>
-                    Upload a backup file to restore your data.
-                  </DialogDescription>
-                </DialogHeader>
-                {/* Restore functionality would go here */}
-              </DialogContent>
-            </Dialog>
-          </div>
-        </Card>
-
-        {/* Account Management */}
-        <Card className="p-6 md:col-span-2">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            {t.accountSettings}
-          </h2>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Button variant="outline">
-              <UserPlus className="mr-2 h-4 w-4" />
-              {t.newUser}
-            </Button>
-            <Button variant="outline">
-              <Users className="mr-2 h-4 w-4" />
-              {t.addToOrg}
-            </Button>
-            <Button variant="outline">
-              <Building className="mr-2 h-4 w-4" />
-              {t.createOrg}
-            </Button>
           </div>
         </Card>
 
@@ -291,26 +266,25 @@ const Settings = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {systemLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="px-4 py-2">{log.action}</td>
-                    <td className="px-4 py-2">
-                      {new Date(log.created_at).toLocaleString()}
+                {systemLogs.length > 0 ? (
+                  systemLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td className="px-4 py-2">{log.action}</td>
+                      <td className="px-4 py-2">
+                        {new Date(log.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="px-4 py-2 text-center text-muted-foreground">
+                      {t.noLogs}
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-        </Card>
-
-        {/* Customization */}
-        <Card className="p-6 md:col-span-2">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Paintbrush className="h-5 w-5" />
-            {t.customization}
-          </h2>
-          {/* Customization options would go here */}
         </Card>
       </div>
     </div>
