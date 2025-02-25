@@ -290,18 +290,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_active: boolean | null
           name: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          is_active?: boolean | null
           name: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_active?: boolean | null
           name?: string
           updated_at?: string | null
         }
@@ -411,6 +414,38 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      user_organizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
