@@ -1,4 +1,3 @@
-
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -23,6 +22,7 @@ import {
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useNavigate } from "react-router-dom";
 
 const translations = {
   en: {
@@ -104,6 +104,7 @@ const Settings = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -124,7 +125,6 @@ const Settings = () => {
       if (error) throw error;
 
       if (!data) {
-        // Create default settings if none exist
         const { data: newSettings, error: createError } = await supabase
           .from('settings')
           .insert([
@@ -269,19 +269,16 @@ const Settings = () => {
       const fileContent = await file.text();
       const backupData = JSON.parse(fileContent);
 
-      // Validate backup data structure
       if (!backupData.items || !backupData.orders || !backupData.timestamp) {
         throw new Error('Invalid backup file format');
       }
 
-      // Restore items
       const { error: itemsError } = await supabase
         .from('items')
         .upsert(backupData.items);
 
       if (itemsError) throw itemsError;
 
-      // Restore orders
       const { error: ordersError } = await supabase
         .from('orders')
         .upsert(backupData.orders);
@@ -306,7 +303,6 @@ const Settings = () => {
       toast.error("Failed to restore backup");
     }
     
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -321,7 +317,6 @@ const Settings = () => {
       <h1 className="text-4xl font-bold">{t.title}</h1>
 
       <div className="grid gap-8 md:grid-cols-2">
-        {/* Currency Settings */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Coins className="h-5 w-5" />
@@ -342,7 +337,6 @@ const Settings = () => {
           </Select>
         </Card>
 
-        {/* Backup & Restore */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Download className="h-5 w-5" />
@@ -379,25 +373,21 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* User Management */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Users className="h-5 w-5" />
             {t.userManagement}
           </h2>
-          <div className="space-y-4">
-            {users.map(user => (
-              <div key={user.id} className="flex items-center justify-between py-2 border-b">
-                <div>
-                  <p className="font-medium">{user.email}</p>
-                  <p className="text-sm text-muted-foreground capitalize">{user.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => navigate('/user-management')}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Manage Users & Organization
+          </Button>
         </Card>
 
-        {/* Customization */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Paintbrush className="h-5 w-5" />
@@ -423,7 +413,6 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* System Logs */}
         <Card className="p-6 md:col-span-2">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <ScrollText className="h-5 w-5" />
