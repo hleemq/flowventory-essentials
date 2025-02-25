@@ -33,6 +33,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useQuery } from "react-query";
+import { AuditLogs } from "@/components/user-management/AuditLogs";
+import { OrganizationSummary } from "@/types/audit";
 
 type UserType = {
   id: string;
@@ -68,7 +71,14 @@ const translations = {
     inactive: "Inactive",
     assignOrganization: "Assign Organization",
     selectOrganization: "Select organization",
-    loading: "Loading..."
+    loading: "Loading...",
+    switchOrganization: "Switch Organization",
+    currentSchema: "Current Schema",
+    summary: "Organization Summary",
+    totalUsers: "Total Users",
+    totalItems: "Total Items",
+    totalOrders: "Total Orders",
+    lastOrder: "Last Order"
   },
   fr: {
     title: "Utilisateur & Organisation",
@@ -87,7 +97,14 @@ const translations = {
     inactive: "Inactif",
     assignOrganization: "Assigner une organisation",
     selectOrganization: "Sélectionner une organisation",
-    loading: "Chargement..."
+    loading: "Chargement...",
+    switchOrganization: "Changer d'organisation",
+    currentSchema: "Schéma actuel",
+    summary: "Résumé de l'organisation",
+    totalUsers: "Nombre d'utilisateurs",
+    totalItems: "Nombre d'articles",
+    totalOrders: "Nombre de commandes",
+    lastOrder: "Dernière commande"
   },
   ar: {
     title: "المستخدمين والمؤسسات",
@@ -106,7 +123,14 @@ const translations = {
     inactive: "غير نشط",
     assignOrganization: "تعيين المؤسسة",
     selectOrganization: "اختر المؤسسة",
-    loading: "جاري التحميل..."
+    loading: "جاري التحميل...",
+    switchOrganization: "تغيير المؤسسة",
+    currentSchema: "المخطط الحالي",
+    summary: "ملخص المؤسسة",
+    totalUsers: "إجمالي المستخدمين",
+    totalItems: "إجمالي العناصر",
+    totalOrders: "إجمالي الطلبات",
+    lastOrder: "آخر طلب"
   }
 };
 
@@ -120,6 +144,18 @@ const UserManagement = () => {
   const [organizations, setOrganizations] = useState<OrganizationType[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+
+  const { data: orgSummary } = useQuery({
+    queryKey: ['org-summary'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organization_summary')
+        .select('*');
+      
+      if (error) throw error;
+      return data as OrganizationSummary[];
+    }
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -264,6 +300,18 @@ const UserManagement = () => {
     }
   };
 
+  const switchOrganizationSchema = async (organizationId: string) => {
+    try {
+      await supabase.rpc('set_organization_schema', {
+        org_id: organizationId
+      });
+      toast.success("Organization schema switched successfully");
+    } catch (error) {
+      console.error('Error switching organization schema:', error);
+      toast.error("Failed to switch organization schema");
+    }
+  };
+
   if (loading) {
     return <div className="container py-8">{t.loading}</div>;
   }
@@ -283,7 +331,33 @@ const UserManagement = () => {
         <OrganizationForm onSubmit={handleAddOrganization} buttonText={t.addOrganization} />
       </div>
 
-      {/* Organizations Section */}
+      <Card className="p-6">
+        <h2 className="text-2xl font-semibold mb-4">{t.summary}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {orgSummary?.map((summary) => (
+            <div key={summary.organization_id} className="p-4 border rounded-lg">
+              <h3 className="font-medium">{summary.organization_name}</h3>
+              <div className="mt-2 space-y-1 text-sm">
+                <p>{t.totalUsers}: {summary.total_users}</p>
+                <p>{t.totalItems}: {summary.total_items}</p>
+                <p>{t.totalOrders}: {summary.total_orders}</p>
+                {summary.last_order_date && (
+                  <p>{t.lastOrder}: {new Date(summary.last_order_date).toLocaleDateString(language)}</p>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => switchOrganizationSchema(summary.organization_id)}
+                >
+                  {t.switchOrganization}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <Card className="p-6">
         <h2 className="text-2xl font-semibold mb-4">{t.organizations}</h2>
         <div className="space-y-4">
@@ -326,7 +400,6 @@ const UserManagement = () => {
         </div>
       </Card>
 
-      {/* Users Section */}
       <Card className="p-6">
         <h2 className="text-2xl font-semibold mb-4">{t.users}</h2>
         <div className="space-y-4">
@@ -409,6 +482,8 @@ const UserManagement = () => {
           </table>
         </div>
       </Card>
+
+      <AuditLogs />
     </div>
   );
 };
