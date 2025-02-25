@@ -1,16 +1,28 @@
+
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import CurrencySettings from "@/components/settings/CurrencySettings";
-import BackupSettings from "@/components/settings/BackupSettings";
-import CustomizationSettings from "@/components/settings/CustomizationSettings";
-import SystemLogs from "@/components/settings/SystemLogs";
+import {
+  Download,
+  Upload,
+  Coins,
+  ScrollText,
+  Users,
+  Paintbrush
+} from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 const translations = {
   en: {
@@ -75,14 +87,20 @@ type SystemLogType = {
   details: any;
 };
 
+type UserType = {
+  id: string;
+  email: string;
+  role: string;
+};
+
 const Settings = () => {
   const { language } = useLanguage();
   const { user } = useAuth();
-  const navigate = useNavigate();
   const t = translations[language];
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [loading, setLoading] = useState(true);
   const [systemLogs, setSystemLogs] = useState<SystemLogType[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [darkMode, setDarkMode] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,6 +109,7 @@ const Settings = () => {
     if (user) {
       fetchSettings();
       fetchSystemLogs();
+      fetchOrganizationUsers();
     }
   }, [user]);
 
@@ -129,6 +148,23 @@ const Settings = () => {
       toast.error("Failed to load settings");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrganizationUsers = async () => {
+    if (!settings?.organization_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, role')
+        .eq('organization_id', settings.organization_id);
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error("Failed to load users");
     }
   };
 
@@ -285,50 +321,147 @@ const Settings = () => {
       <h1 className="text-4xl font-bold">{t.title}</h1>
 
       <div className="grid gap-8 md:grid-cols-2">
-        <CurrencySettings
-          currentCurrency={settings?.currency || 'USD'}
-          onCurrencyChange={updateCurrency}
-          title={t.currencySettings}
-        />
+        {/* Currency Settings */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Coins className="h-5 w-5" />
+            {t.currencySettings}
+          </h2>
+          <Select
+            value={settings?.currency || 'USD'}
+            onValueChange={updateCurrency}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="USD">$ (USD)</SelectItem>
+              <SelectItem value="EUR">€ (EUR)</SelectItem>
+              <SelectItem value="MAD">MAD (Moroccan Dirham)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Card>
 
-        <BackupSettings
-          onDownload={downloadBackup}
-          onFileUpload={handleFileUpload}
-          title={t.backupSettings}
-          downloadText={t.download}
-          restoreText={t.restore}
-        />
+        {/* Backup & Restore */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            {t.backupSettings}
+          </h2>
+          <div className="space-y-4">
+            <Button
+              onClick={downloadBackup}
+              className="w-full"
+              variant="outline"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {t.download}
+            </Button>
+            
+            <div className="flex items-center gap-4">
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleFileUpload}
+                ref={fileInputRef}
+                className="hidden"
+                id="backup-file"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+                variant="outline"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {t.restore}
+              </Button>
+            </div>
+          </div>
+        </Card>
 
+        {/* User Management */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Users className="h-5 w-5" />
             {t.userManagement}
           </h2>
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => navigate('/user-management')}
-          >
-            <Users className="mr-2 h-4 w-4" />
-            Manage Users & Organization
-          </Button>
+          <div className="space-y-4">
+            {users.map(user => (
+              <div key={user.id} className="flex items-center justify-between py-2 border-b">
+                <div>
+                  <p className="font-medium">{user.email}</p>
+                  <p className="text-sm text-muted-foreground capitalize">{user.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
 
-        <CustomizationSettings
-          darkMode={darkMode}
-          compactMode={compactMode}
-          onDarkModeChange={setDarkMode}
-          onCompactModeChange={setCompactMode}
-          title={t.customization}
-          darkModeText={t.darkMode}
-          compactModeText={t.compactMode}
-        />
+        {/* Customization */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Paintbrush className="h-5 w-5" />
+            {t.customization}
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="dark-mode">{t.darkMode}</Label>
+              <Switch
+                id="dark-mode"
+                checked={darkMode}
+                onCheckedChange={setDarkMode}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="compact-mode">{t.compactMode}</Label>
+              <Switch
+                id="compact-mode"
+                checked={compactMode}
+                onCheckedChange={setCompactMode}
+              />
+            </div>
+          </div>
+        </Card>
 
-        <SystemLogs
-          logs={systemLogs}
-          title={t.systemLogs}
-          noLogsMessage={t.noLogs}
-        />
+        {/* System Logs */}
+        <Card className="p-6 md:col-span-2">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <ScrollText className="h-5 w-5" />
+            {t.systemLogs}
+          </h2>
+          <div className="overflow-auto max-h-[300px] rounded border">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-4 py-2 text-start">Action</th>
+                  <th className="px-4 py-2 text-start">Details</th>
+                  <th className="px-4 py-2 text-start">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {systemLogs.length > 0 ? (
+                  systemLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td className="px-4 py-2">{log.action}</td>
+                      <td className="px-4 py-2">
+                        {log.details ? JSON.stringify(log.details) : '-'}
+                      </td>
+                      <td className="px-4 py-2">
+                        {new Date(log.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-2 text-center text-muted-foreground">
+                      {t.noLogs}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
     </div>
   );
