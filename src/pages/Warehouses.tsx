@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -87,6 +88,10 @@ const Warehouses = () => {
     name: "",
     location: "",
   });
+  const [formErrors, setFormErrors] = useState({
+    name: false,
+    location: false,
+  });
 
   useEffect(() => {
     fetchWarehouses();
@@ -126,7 +131,22 @@ const Warehouses = () => {
     }
   };
 
+  const validateForm = () => {
+    const errors = {
+      name: !newWarehouse.name.trim(),
+      location: !newWarehouse.location.trim(),
+    };
+    
+    setFormErrors(errors);
+    return !Object.values(errors).some(Boolean);
+  };
+
   const handleAddWarehouse = async () => {
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('warehouses')
@@ -185,7 +205,10 @@ const Warehouses = () => {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">{t.name}</Label>
+                <Label htmlFor="name" className="flex items-center gap-1">
+                  {t.name}
+                  <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="name"
                   placeholder={t.warehouseName}
@@ -193,10 +216,14 @@ const Warehouses = () => {
                   onChange={(e) =>
                     setNewWarehouse({ ...newWarehouse, name: e.target.value })
                   }
+                  className={formErrors.name ? "border-red-500" : ""}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="location">{t.location}</Label>
+                <Label htmlFor="location" className="flex items-center gap-1">
+                  {t.location}
+                  <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="location"
                   placeholder={t.warehouseLocation}
@@ -204,6 +231,7 @@ const Warehouses = () => {
                   onChange={(e) =>
                     setNewWarehouse({ ...newWarehouse, location: e.target.value })
                   }
+                  className={formErrors.location ? "border-red-500" : ""}
                 />
               </div>
             </div>
