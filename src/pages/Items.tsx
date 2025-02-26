@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -155,6 +156,7 @@ const Items = () => {
     fetchWarehouses();
     fetchItems();
 
+    // Subscribe to realtime updates for warehouses
     const warehouseChannel = supabase
       .channel('warehouse-updates')
       .on(
@@ -263,10 +265,20 @@ const Items = () => {
 
       if (itemError) throw itemError;
 
+      // Get current warehouse count
+      const { data: warehouseData, error: getWarehouseError } = await supabase
+        .from('warehouses')
+        .select('items_count')
+        .eq('id', newItem.warehouse)
+        .single();
+        
+      if (getWarehouseError) throw getWarehouseError;
+
+      // Update warehouse items count
       const { error: warehouseError } = await supabase
         .from('warehouses')
         .update({ 
-          items_count: supabase.sql`items_count + 1` 
+          items_count: (warehouseData?.items_count || 0) + 1
         })
         .eq('id', newItem.warehouse);
 
@@ -412,10 +424,7 @@ const Items = () => {
                   type="number"
                   value={newItem.shipmentFees}
                   onChange={(e) =>
-                    setNewItem({
-                      ...newItem,
-                      shipmentFees: Number(e.target.value),
-                    })
+                    setNewItem({ ...newItem, shipmentFees: Number(e.target.value) })
                   }
                 />
               </div>
@@ -426,10 +435,7 @@ const Items = () => {
                   type="number"
                   value={newItem.sellingPrice}
                   onChange={(e) =>
-                    setNewItem({
-                      ...newItem,
-                      sellingPrice: Number(e.target.value),
-                    })
+                    setNewItem({ ...newItem, sellingPrice: Number(e.target.value) })
                   }
                 />
               </div>

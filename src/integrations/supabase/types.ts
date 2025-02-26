@@ -176,6 +176,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "items_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notifications: {
@@ -616,6 +623,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          items_count: number | null
           location: string
           name: string
           organization_id: string | null
@@ -624,6 +632,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          items_count?: number | null
           location: string
           name: string
           organization_id?: string | null
@@ -632,6 +641,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          items_count?: number | null
           location?: string
           name?: string
           organization_id?: string | null
