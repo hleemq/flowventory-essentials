@@ -361,8 +361,10 @@ export type Database = {
       settings: {
         Row: {
           backup_frequency: string | null
+          compact_mode: boolean | null
           created_at: string | null
           currency: string
+          dark_mode: boolean | null
           id: string
           language: string
           last_backup: string | null
@@ -373,8 +375,10 @@ export type Database = {
         }
         Insert: {
           backup_frequency?: string | null
+          compact_mode?: boolean | null
           created_at?: string | null
           currency: string
+          dark_mode?: boolean | null
           id?: string
           language: string
           last_backup?: string | null
@@ -385,8 +389,10 @@ export type Database = {
         }
         Update: {
           backup_frequency?: string | null
+          compact_mode?: boolean | null
           created_at?: string | null
           currency?: string
+          dark_mode?: boolean | null
           id?: string
           language?: string
           last_backup?: string | null
@@ -423,6 +429,7 @@ export type Database = {
         Row: {
           action: string
           created_at: string | null
+          details: Json | null
           id: string
           organization_id: string | null
           query_details: Json | null
@@ -433,6 +440,7 @@ export type Database = {
         Insert: {
           action: string
           created_at?: string | null
+          details?: Json | null
           id?: string
           organization_id?: string | null
           query_details?: Json | null
@@ -443,6 +451,7 @@ export type Database = {
         Update: {
           action?: string
           created_at?: string | null
+          details?: Json | null
           id?: string
           organization_id?: string | null
           query_details?: Json | null
