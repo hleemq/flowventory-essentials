@@ -1,3 +1,4 @@
+
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -78,6 +79,9 @@ type SettingsType = {
   theme: string;
   id: string;
   organization_id: string;
+  language: string;
+  dark_mode: boolean;
+  compact_mode: boolean;
 };
 
 type SystemLogType = {
@@ -120,11 +124,15 @@ const Settings = () => {
         .from('settings')
         .select('*')
         .eq('user_id', user?.id)
-        .maybeSingle();
+        .single();
 
       if (error) throw error;
 
-      if (!data) {
+      if (data) {
+        setSettings(data);
+        setDarkMode(data.dark_mode || false);
+        setCompactMode(data.compact_mode || false);
+      } else {
         const { data: newSettings, error: createError } = await supabase
           .from('settings')
           .insert([
@@ -132,7 +140,10 @@ const Settings = () => {
               user_id: user?.id,
               currency: 'USD',
               backup_frequency: 'weekly',
-              theme: 'system'
+              theme: 'system',
+              language: language,
+              dark_mode: false,
+              compact_mode: false
             }
           ])
           .select()
@@ -140,8 +151,6 @@ const Settings = () => {
 
         if (createError) throw createError;
         setSettings(newSettings);
-      } else {
-        setSettings(data);
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -171,10 +180,10 @@ const Settings = () => {
   const fetchSystemLogs = async () => {
     try {
       const { data, error } = await supabase
-        .from('system_logs')
+        .from('system_audit_logs')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setSystemLogs(data || []);
@@ -199,7 +208,7 @@ const Settings = () => {
       setSettings(prev => prev ? { ...prev, currency: newCurrency } : null);
       
       await supabase
-        .from('system_logs')
+        .from('system_audit_logs')
         .insert([{
           action: `Currency updated to ${newCurrency}`,
           user_id: user?.id,
@@ -246,7 +255,7 @@ const Settings = () => {
       URL.revokeObjectURL(url);
 
       await supabase
-        .from('system_logs')
+        .from('system_audit_logs')
         .insert([{
           action: 'Data backup downloaded',
           user_id: user?.id,
@@ -286,7 +295,7 @@ const Settings = () => {
       if (ordersError) throw ordersError;
 
       await supabase
-        .from('system_logs')
+        .from('system_audit_logs')
         .insert([{
           action: 'Data restored from backup',
           user_id: user?.id,
@@ -305,6 +314,43 @@ const Settings = () => {
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const updateAppearance = async (darkMode: boolean, compactMode: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .update({ 
+          dark_mode: darkMode,
+          compact_mode: compactMode,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+      
+      setDarkMode(darkMode);
+      setCompactMode(compactMode);
+      
+      // Apply dark mode to document
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      
+      // Apply compact mode to document
+      if (compactMode) {
+        document.documentElement.classList.add('compact');
+      } else {
+        document.documentElement.classList.remove('compact');
+      }
+
+      toast.success("Appearance settings updated");
+    } catch (error) {
+      console.error('Error updating appearance:', error);
+      toast.error("Failed to update appearance settings");
     }
   };
 
@@ -399,7 +445,10 @@ const Settings = () => {
               <Switch
                 id="dark-mode"
                 checked={darkMode}
-                onCheckedChange={setDarkMode}
+                onCheckedChange={(checked) => {
+                  setDarkMode(checked);
+                  updateAppearance(checked, compactMode);
+                }}
               />
             </div>
             <div className="flex items-center justify-between">
@@ -407,7 +456,10 @@ const Settings = () => {
               <Switch
                 id="compact-mode"
                 checked={compactMode}
-                onCheckedChange={setCompactMode}
+                onCheckedChange={(checked) => {
+                  setCompactMode(checked);
+                  updateAppearance(darkMode, checked);
+                }}
               />
             </div>
           </div>
