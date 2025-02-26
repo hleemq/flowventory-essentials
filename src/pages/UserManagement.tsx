@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -33,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AuditLogs } from "@/components/user-management/AuditLogs";
 import { OrganizationSummary } from "@/types/audit";
 
