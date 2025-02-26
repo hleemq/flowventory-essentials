@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const translations = {
   en: {
@@ -74,41 +75,97 @@ interface Warehouse {
   id: string;
   name: string;
   location: string;
-  itemsCount: number;
+  items_count: number;
 }
 
 const Warehouses = () => {
   const { language } = useLanguage();
   const t = translations[language];
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([
-    {
-      id: "1",
-      name: "Depot",
-      location: "Sbit",
-      itemsCount: 2,
-    }
-  ]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newWarehouse, setNewWarehouse] = useState({
     name: "",
     location: "",
   });
 
-  const handleAddWarehouse = () => {
-    const warehouse: Warehouse = {
-      id: Math.random().toString(36).slice(2),
-      name: newWarehouse.name,
-      location: newWarehouse.location,
-      itemsCount: 0,
-    };
+  useEffect(() => {
+    fetchWarehouses();
 
-    setWarehouses([...warehouses, warehouse]);
-    setIsDialogOpen(false);
-    setNewWarehouse({ name: "", location: "" });
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('warehouse-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'warehouses'
+        },
+        () => {
+          fetchWarehouses();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchWarehouses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*');
+      
+      if (error) throw error;
+      setWarehouses(data || []);
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+      toast.error("Failed to fetch warehouses");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setWarehouses(warehouses.filter(w => w.id !== id));
+  const handleAddWarehouse = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .insert([
+          {
+            name: newWarehouse.name,
+            location: newWarehouse.location,
+            items_count: 0,
+          }
+        ])
+        .select();
+
+      if (error) throw error;
+
+      setWarehouses([...warehouses, ...data]);
+      setIsDialogOpen(false);
+      setNewWarehouse({ name: "", location: "" });
+      toast.success("Warehouse added successfully");
+    } catch (error) {
+      console.error('Error adding warehouse:', error);
+      toast.error("Failed to add warehouse");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('warehouses')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      setWarehouses(warehouses.filter(w => w.id !== id));
+      toast.success("Warehouse deleted successfully");
+    } catch (error) {
+      console.error('Error deleting warehouse:', error);
+      toast.error("Failed to delete warehouse");
+    }
   };
 
   return (
@@ -175,7 +232,7 @@ const Warehouses = () => {
               <TableRow key={warehouse.id}>
                 <TableCell>{warehouse.name}</TableCell>
                 <TableCell>{warehouse.location}</TableCell>
-                <TableCell>{warehouse.itemsCount}</TableCell>
+                <TableCell>{warehouse.items_count}</TableCell>
                 <TableCell>
                   <div className="flex gap-2">
                     <Button variant="ghost" className="text-blue-500">

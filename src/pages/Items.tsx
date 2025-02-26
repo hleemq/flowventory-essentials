@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -21,6 +27,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const translations = {
   en: {
@@ -111,12 +119,25 @@ interface Item {
   unitsLeft: number;
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+  location: string;
+  itemsCount: number;
+}
+
 const Items = () => {
   const { language } = useLanguage();
   const t = translations[language];
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<Item[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formErrors, setFormErrors] = useState({
+    stockCode: false,
+    productName: false,
+    warehouse: false,
+  });
 
   const [newItem, setNewItem] = useState({
     image: "",
@@ -130,34 +151,146 @@ const Items = () => {
     warehouse: "",
   });
 
-  const handleAddItem = () => {
-    const item: Item = {
-      id: Math.random().toString(36).slice(2),
-      image: newItem.image || "/placeholder.svg",
-      stockCode: newItem.stockCode,
-      productName: newItem.productName,
-      boxes: newItem.boxes,
-      unitsPerBox: newItem.unitsPerBox,
-      initialPrice: newItem.boughtPrice + newItem.shipmentFees,
-      sellingPrice: newItem.sellingPrice,
-      location: newItem.warehouse,
-      stockStatus: "In Stock",
-      unitsLeft: newItem.boxes * newItem.unitsPerBox,
-    };
+  useEffect(() => {
+    fetchWarehouses();
+    fetchItems();
 
-    setItems([...items, item]);
-    setIsDialogOpen(false);
-    setNewItem({
-      image: "",
-      stockCode: "",
-      productName: "",
-      boxes: 0,
-      unitsPerBox: 0,
-      boughtPrice: 0,
-      shipmentFees: 0,
-      sellingPrice: 0,
-      warehouse: "",
-    });
+    const warehouseChannel = supabase
+      .channel('warehouse-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'warehouses'
+        },
+        () => {
+          fetchWarehouses();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(warehouseChannel);
+    };
+  }, []);
+
+  const fetchWarehouses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*');
+      
+      if (error) throw error;
+      setWarehouses(data || []);
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+      toast.error("Failed to fetch warehouses");
+    }
+  };
+
+  const fetchItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('items')
+        .select(`
+          *,
+          warehouses (
+            name,
+            location
+          )
+        `);
+      
+      if (error) throw error;
+      
+      const formattedItems = data.map(item => ({
+        id: item.id,
+        image: item.image || "/placeholder.svg",
+        stockCode: item.sku,
+        productName: item.name,
+        boxes: item.boxes,
+        unitsPerBox: item.units_per_box,
+        initialPrice: item.bought_price + item.shipment_fees,
+        sellingPrice: item.selling_price,
+        location: item.warehouses?.name || '',
+        stockStatus: item.quantity > 0 ? "In Stock" : "Out of Stock",
+        unitsLeft: item.quantity,
+      }));
+
+      setItems(formattedItems);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+      toast.error("Failed to fetch items");
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {
+      stockCode: !newItem.stockCode.trim(),
+      productName: !newItem.productName.trim(),
+      warehouse: !newItem.warehouse,
+    };
+    
+    setFormErrors(errors);
+    return !Object.values(errors).some(Boolean);
+  };
+
+  const handleAddItem = async () => {
+    if (!validateForm()) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      const { data: itemData, error: itemError } = await supabase
+        .from('items')
+        .insert([
+          {
+            sku: newItem.stockCode,
+            name: newItem.productName,
+            boxes: newItem.boxes,
+            units_per_box: newItem.unitsPerBox,
+            bought_price: newItem.boughtPrice,
+            shipment_fees: newItem.shipmentFees,
+            selling_price: newItem.sellingPrice,
+            warehouse_id: newItem.warehouse,
+            quantity: newItem.boxes * newItem.unitsPerBox,
+            image: newItem.image || "/placeholder.svg",
+          }
+        ])
+        .select()
+        .single();
+
+      if (itemError) throw itemError;
+
+      const { error: warehouseError } = await supabase
+        .from('warehouses')
+        .update({ 
+          items_count: supabase.sql`items_count + 1` 
+        })
+        .eq('id', newItem.warehouse);
+
+      if (warehouseError) throw warehouseError;
+
+      setIsDialogOpen(false);
+      setNewItem({
+        image: "",
+        stockCode: "",
+        productName: "",
+        boxes: 0,
+        unitsPerBox: 0,
+        boughtPrice: 0,
+        shipmentFees: 0,
+        sellingPrice: 0,
+        warehouse: "",
+      });
+      
+      fetchItems();
+      toast.success("Item added successfully");
+    } catch (error) {
+      console.error('Error adding item:', error);
+      toast.error("Failed to add item");
+    }
   };
 
   return (
@@ -187,24 +320,57 @@ const Items = () => {
                 </Button>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="stockCode">{t.stockCode}</Label>
+                <Label htmlFor="stockCode" className="flex items-center gap-1">
+                  {t.stockCode}
+                  <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="stockCode"
                   value={newItem.stockCode}
                   onChange={(e) =>
                     setNewItem({ ...newItem, stockCode: e.target.value })
                   }
+                  className={formErrors.stockCode ? "border-red-500" : ""}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="productName">{t.productName}</Label>
+                <Label htmlFor="productName" className="flex items-center gap-1">
+                  {t.productName}
+                  <span className="text-red-500">*</span>
+                </Label>
                 <Input
                   id="productName"
                   value={newItem.productName}
                   onChange={(e) =>
                     setNewItem({ ...newItem, productName: e.target.value })
                   }
+                  className={formErrors.productName ? "border-red-500" : ""}
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="warehouse" className="flex items-center gap-1">
+                  {t.warehouse}
+                  <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={newItem.warehouse}
+                  onValueChange={(value) =>
+                    setNewItem({ ...newItem, warehouse: value })
+                  }
+                >
+                  <SelectTrigger
+                    className={formErrors.warehouse ? "border-red-500" : ""}
+                  >
+                    <SelectValue placeholder={t.selectWarehouse} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name} ({warehouse.location})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="boxes">{t.boxes}</Label>
@@ -264,17 +430,6 @@ const Items = () => {
                       ...newItem,
                       sellingPrice: Number(e.target.value),
                     })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="warehouse">{t.warehouse}</Label>
-                <Input
-                  id="warehouse"
-                  placeholder={t.selectWarehouse}
-                  value={newItem.warehouse}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, warehouse: e.target.value })
                   }
                 />
               </div>
