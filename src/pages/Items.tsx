@@ -197,7 +197,7 @@ const Items = () => {
         .from('items')
         .select(`
           *,
-          warehouses (
+          warehouses!fk_items_warehouses (
             name,
             location
           )
