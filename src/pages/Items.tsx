@@ -206,6 +206,7 @@ const Items = () => {
         .select('*');
       
       if (error) throw error;
+      console.log("Fetched warehouses:", data);
       setWarehouses(data || []);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
@@ -219,13 +220,15 @@ const Items = () => {
         .from('items')
         .select(`
           *,
-          warehouses (
+          warehouses:warehouse_id (
             name,
             location
           )
         `);
       
       if (error) throw error;
+      
+      console.log("Fetched items:", data);
       
       const formattedItems = data.map(item => ({
         id: item.id,
@@ -266,6 +269,20 @@ const Items = () => {
     }
 
     try {
+      console.log("Adding item with data:", {
+        sku: newItem.stockCode,
+        name: newItem.productName,
+        boxes: newItem.boxes,
+        units_per_box: newItem.unitsPerBox,
+        bought_price: newItem.boughtPrice,
+        shipment_fees: newItem.shipmentFees,
+        selling_price: newItem.sellingPrice,
+        warehouse_id: newItem.warehouse,
+        quantity: newItem.boxes * newItem.unitsPerBox,
+        image: newItem.image || "/placeholder.svg",
+        low_stock_threshold: newItem.lowStockThreshold,
+      });
+
       const { data: itemData, error: itemError } = await supabase
         .from('items')
         .insert([
@@ -286,6 +303,8 @@ const Items = () => {
         .select();
 
       if (itemError) throw itemError;
+
+      console.log("Item added successfully:", itemData);
 
       // Update warehouse items count
       const { error: warehouseError } = await supabase
@@ -312,6 +331,7 @@ const Items = () => {
       });
       
       toast.success("Item added successfully");
+      fetchItems(); // Refresh the items list
     } catch (error) {
       console.error('Error adding item:', error);
       toast.error("Failed to add item: " + (error as Error).message);
