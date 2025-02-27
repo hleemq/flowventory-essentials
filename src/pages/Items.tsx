@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +56,7 @@ const translations = {
     unitsLeft: "Units Left",
     actions: "Actions",
     image: "Image",
+    lowStockThreshold: "Low Stock Threshold",
   },
   fr: {
     title: "Articles",
@@ -79,6 +81,7 @@ const translations = {
     unitsLeft: "Unités restantes",
     actions: "Actions",
     image: "Image",
+    lowStockThreshold: "Seuil de stock bas",
   },
   ar: {
     title: "العناصر",
@@ -103,6 +106,7 @@ const translations = {
     unitsLeft: "الوحدات المتبقية",
     actions: "الإجراءات",
     image: "الصورة",
+    lowStockThreshold: "حد المخزون المنخفض",
   }
 };
 
@@ -150,6 +154,7 @@ const Items = () => {
     shipmentFees: 0,
     sellingPrice: 0,
     warehouse: "",
+    lowStockThreshold: 10,
   });
 
   useEffect(() => {
@@ -172,8 +177,25 @@ const Items = () => {
       )
       .subscribe();
 
+    // Subscribe to realtime updates for items
+    const itemsChannel = supabase
+      .channel('items-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'items'
+        },
+        () => {
+          fetchItems();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(warehouseChannel);
+      supabase.removeChannel(itemsChannel);
     };
   }, []);
 
@@ -197,7 +219,7 @@ const Items = () => {
         .from('items')
         .select(`
           *,
-          warehouses!fk_items_warehouses (
+          warehouses (
             name,
             location
           )
@@ -258,27 +280,18 @@ const Items = () => {
             warehouse_id: newItem.warehouse,
             quantity: newItem.boxes * newItem.unitsPerBox,
             image: newItem.image || "/placeholder.svg",
+            low_stock_threshold: newItem.lowStockThreshold,
           }
         ])
-        .select()
-        .single();
+        .select();
 
       if (itemError) throw itemError;
-
-      // Get current warehouse count
-      const { data: warehouseData, error: getWarehouseError } = await supabase
-        .from('warehouses')
-        .select('items_count')
-        .eq('id', newItem.warehouse)
-        .single();
-        
-      if (getWarehouseError) throw getWarehouseError;
 
       // Update warehouse items count
       const { error: warehouseError } = await supabase
         .from('warehouses')
         .update({ 
-          items_count: (warehouseData?.items_count || 0) + 1
+          items_count: warehouses.find(w => w.id === newItem.warehouse)?.items_count + 1 || 1
         })
         .eq('id', newItem.warehouse);
 
@@ -295,20 +308,23 @@ const Items = () => {
         shipmentFees: 0,
         sellingPrice: 0,
         warehouse: "",
+        lowStockThreshold: 10,
       });
       
-      fetchItems();
       toast.success("Item added successfully");
     } catch (error) {
       console.error('Error adding item:', error);
-      toast.error("Failed to add item");
+      toast.error("Failed to add item: " + (error as Error).message);
     }
   };
 
   return (
     <div className="container py-8 animate-in">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold">{t.title}</h1>
+        <div>
+          <h1 className="text-4xl font-bold">{t.title}</h1>
+          <p className="text-muted-foreground mt-2">{t.description}</p>
+        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -319,6 +335,9 @@ const Items = () => {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{t.addNewStockItem}</DialogTitle>
+              <DialogDescription>
+                Fill in the item details below to add it to your inventory.
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="flex flex-col items-center gap-4">
@@ -384,60 +403,86 @@ const Items = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="boxes">{t.boxes}</Label>
-                <Input
-                  id="boxes"
-                  type="number"
-                  value={newItem.boxes}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, boxes: Number(e.target.value) })
-                  }
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="boxes">{t.boxes}</Label>
+                  <Input
+                    id="boxes"
+                    type="number"
+                    min="0"
+                    value={newItem.boxes}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, boxes: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="unitsPerBox">{t.unitsPerBox}</Label>
+                  <Input
+                    id="unitsPerBox"
+                    type="number"
+                    min="0"
+                    value={newItem.unitsPerBox}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, unitsPerBox: Number(e.target.value) })
+                    }
+                  />
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="unitsPerBox">{t.unitsPerBox}</Label>
-                <Input
-                  id="unitsPerBox"
-                  type="number"
-                  value={newItem.unitsPerBox}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, unitsPerBox: Number(e.target.value) })
-                  }
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="boughtPrice">{t.boughtPrice}</Label>
+                  <Input
+                    id="boughtPrice"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newItem.boughtPrice}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, boughtPrice: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="shipmentFees">{t.shipmentFees}</Label>
+                  <Input
+                    id="shipmentFees"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newItem.shipmentFees}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, shipmentFees: Number(e.target.value) })
+                    }
+                  />
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="boughtPrice">{t.boughtPrice}</Label>
-                <Input
-                  id="boughtPrice"
-                  type="number"
-                  value={newItem.boughtPrice}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, boughtPrice: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="shipmentFees">{t.shipmentFees}</Label>
-                <Input
-                  id="shipmentFees"
-                  type="number"
-                  value={newItem.shipmentFees}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, shipmentFees: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="sellingPrice">{t.sellingPrice}</Label>
-                <Input
-                  id="sellingPrice"
-                  type="number"
-                  value={newItem.sellingPrice}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, sellingPrice: Number(e.target.value) })
-                  }
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="sellingPrice">{t.sellingPrice}</Label>
+                  <Input
+                    id="sellingPrice"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newItem.sellingPrice}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, sellingPrice: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="lowStockThreshold">{t.lowStockThreshold}</Label>
+                  <Input
+                    id="lowStockThreshold"
+                    type="number"
+                    min="0"
+                    value={newItem.lowStockThreshold}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, lowStockThreshold: Number(e.target.value) })
+                    }
+                  />
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-4">
@@ -479,41 +524,57 @@ const Items = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items
-                .filter(
-                  (item) =>
-                    item.productName
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase()) ||
-                    item.stockCode
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase())
-                )
-                .map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <img
-                        src={item.image}
-                        alt={item.productName}
-                        className="w-10 h-10 object-cover rounded"
-                      />
-                    </TableCell>
-                    <TableCell>{item.stockCode}</TableCell>
-                    <TableCell>{item.productName}</TableCell>
-                    <TableCell>{item.boxes}</TableCell>
-                    <TableCell>{item.unitsPerBox}</TableCell>
-                    <TableCell>{item.initialPrice}</TableCell>
-                    <TableCell>{item.sellingPrice}</TableCell>
-                    <TableCell>{item.location}</TableCell>
-                    <TableCell>{item.stockStatus}</TableCell>
-                    <TableCell>{item.unitsLeft}</TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        •••
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    No items found. Click 'Add Item' to add your first inventory item.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items
+                  .filter(
+                    (item) =>
+                      item.productName
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                      item.stockCode
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase())
+                  )
+                  .map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <img
+                          src={item.image}
+                          alt={item.productName}
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                      </TableCell>
+                      <TableCell>{item.stockCode}</TableCell>
+                      <TableCell>{item.productName}</TableCell>
+                      <TableCell>{item.boxes}</TableCell>
+                      <TableCell>{item.unitsPerBox}</TableCell>
+                      <TableCell>{item.initialPrice}</TableCell>
+                      <TableCell>{item.sellingPrice}</TableCell>
+                      <TableCell>{item.location}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          item.stockStatus === "In Stock" 
+                            ? "bg-green-100 text-green-800" 
+                            : "bg-red-100 text-red-800"
+                        }`}>
+                          {item.stockStatus}
+                        </span>
+                      </TableCell>
+                      <TableCell>{item.unitsLeft}</TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm">
+                          •••
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
             </TableBody>
           </Table>
         </div>
