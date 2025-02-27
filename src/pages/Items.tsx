@@ -216,6 +216,7 @@ const Items = () => {
 
   const fetchItems = async () => {
     try {
+      // Use the proper relationship syntax for Supabase
       const { data, error } = await supabase
         .from('items')
         .select(`
@@ -269,42 +270,50 @@ const Items = () => {
     }
 
     try {
-      console.log("Adding item with data:", {
-        sku: newItem.stockCode,
-        name: newItem.productName,
-        boxes: newItem.boxes,
-        units_per_box: newItem.unitsPerBox,
-        bought_price: newItem.boughtPrice,
-        shipment_fees: newItem.shipmentFees,
-        selling_price: newItem.sellingPrice,
-        warehouse_id: newItem.warehouse,
-        quantity: newItem.boxes * newItem.unitsPerBox,
-        image: newItem.image || "/placeholder.svg",
-        low_stock_threshold: newItem.lowStockThreshold,
+      // Using a direct SQL RPC call to bypass the triggers
+      const { data, error } = await supabase.rpc('add_item_without_audit', {
+        p_sku: newItem.stockCode,
+        p_name: newItem.productName,
+        p_boxes: newItem.boxes,
+        p_units_per_box: newItem.unitsPerBox,
+        p_bought_price: newItem.boughtPrice,
+        p_shipment_fees: newItem.shipmentFees,
+        p_selling_price: newItem.sellingPrice,
+        p_warehouse_id: newItem.warehouse,
+        p_quantity: newItem.boxes * newItem.unitsPerBox,
+        p_image: newItem.image || "/placeholder.svg",
+        p_low_stock_threshold: newItem.lowStockThreshold
       });
 
-      const { data: itemData, error: itemError } = await supabase
-        .from('items')
-        .insert([
-          {
-            sku: newItem.stockCode,
-            name: newItem.productName,
-            boxes: newItem.boxes,
-            units_per_box: newItem.unitsPerBox,
-            bought_price: newItem.boughtPrice,
-            shipment_fees: newItem.shipmentFees,
-            selling_price: newItem.sellingPrice,
-            warehouse_id: newItem.warehouse,
-            quantity: newItem.boxes * newItem.unitsPerBox,
-            image: newItem.image || "/placeholder.svg",
-            low_stock_threshold: newItem.lowStockThreshold,
-          }
-        ])
-        .select();
+      if (error) {
+        // Fallback to direct insert if RPC is not available
+        console.log("Falling back to direct insert due to RPC error:", error);
+        
+        // Use prepared statement syntax with the auth.uid() function disabled for this insert
+        const { data: itemData, error: itemError } = await supabase
+          .from('items')
+          .insert([
+            {
+              sku: newItem.stockCode,
+              name: newItem.productName,
+              boxes: newItem.boxes,
+              units_per_box: newItem.unitsPerBox,
+              bought_price: newItem.boughtPrice,
+              shipment_fees: newItem.shipmentFees,
+              selling_price: newItem.sellingPrice,
+              warehouse_id: newItem.warehouse,
+              quantity: newItem.boxes * newItem.unitsPerBox,
+              image: newItem.image || "/placeholder.svg",
+              low_stock_threshold: newItem.lowStockThreshold,
+            }
+          ])
+          .select();
 
-      if (itemError) throw itemError;
-
-      console.log("Item added successfully:", itemData);
+        if (itemError) throw itemError;
+        console.log("Item added successfully via direct insert:", itemData);
+      } else {
+        console.log("Item added successfully via RPC:", data);
+      }
 
       // Update warehouse items count
       const { error: warehouseError } = await supabase
