@@ -127,6 +127,19 @@ const translations = {
   }
 };
 
+// Define the structure of the API response from Supabase
+interface OrderResponse {
+  id: string;
+  created_at: string;
+  status: string;
+  total_amount: number;
+  customer: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+// Define our application Order interface
 interface Order {
   id: string;
   created_at: string;
@@ -135,7 +148,7 @@ interface Order {
   customer: {
     id: string;
     name: string;
-  };
+  } | null;
 }
 
 interface Customer {
@@ -225,7 +238,16 @@ const Orders = () => {
       
       if (error) throw error;
       
-      setOrders(data || []);
+      // Convert the raw response to our Order interface
+      const formattedOrders: Order[] = (data || []).map(order => ({
+        id: order.id,
+        created_at: order.created_at,
+        status: order.status,
+        total_amount: order.total_amount,
+        customer: order.customer ? order.customer[0] || null : null
+      }));
+      
+      setOrders(formattedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error("Failed to fetch orders");
@@ -692,12 +714,12 @@ const Orders = () => {
             ) : (
               orders
                 .filter(order => 
-                  order.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || ""
+                  (order.customer?.name?.toLowerCase() || "").includes(searchQuery.toLowerCase())
                 )
                 .map((order) => (
                   <TableRow key={order.id}>
                     <TableCell>ORD-{order.id.substring(0, 8)}</TableCell>
-                    <TableCell>{order.customer?.name}</TableCell>
+                    <TableCell>{order.customer?.name || "Unknown Customer"}</TableCell>
                     <TableCell>{formatDate(order.created_at)}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(order.status)}`}>
