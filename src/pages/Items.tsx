@@ -128,7 +128,7 @@ interface Warehouse {
   id: string;
   name: string;
   location: string;
-  itemsCount: number;
+  items_count: number;
 }
 
 const Items = () => {

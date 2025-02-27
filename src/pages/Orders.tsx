@@ -216,7 +216,7 @@ const Orders = () => {
           created_at,
           status,
           total_amount,
-          customers (
+          customer:customer_id (
             id,
             name
           )
@@ -607,7 +607,6 @@ const Orders = () => {
                                 });
                               }}
                               className="w-16 text-center"
-                              suffix="%"
                             />
                           </TableCell>
                           <TableCell>{formatCurrency(item.price * (1 - item.discount / 100))}</TableCell>
@@ -693,12 +692,12 @@ const Orders = () => {
             ) : (
               orders
                 .filter(order => 
-                  order.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+                  order.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) || ""
                 )
                 .map((order) => (
                   <TableRow key={order.id}>
                     <TableCell>ORD-{order.id.substring(0, 8)}</TableCell>
-                    <TableCell>{order.customer.name}</TableCell>
+                    <TableCell>{order.customer?.name}</TableCell>
                     <TableCell>{formatDate(order.created_at)}</TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClasses(order.status)}`}>
