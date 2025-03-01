@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -144,7 +143,7 @@ interface ItemResponse {
   selling_price: number;
   quantity: number;
   warehouse_id: string | null;
-  warehouses?: {  // Make this a single object, not an array
+  warehouses: {  // This is returned as a single object, not an array
     name: string;
     location: string;
   } | null;
@@ -237,7 +236,6 @@ const Items = () => {
 
   const fetchItems = async () => {
     try {
-      // Fix the relationship syntax by using one of the suggested relationships
       const { data, error } = await supabase
         .from('items')
         .select(`
