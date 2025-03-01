@@ -32,7 +32,7 @@
    - Implemented complete translation support for English, French, and Arabic
 
 6. Fixed build and deployment issues
-   - Updated import paths in App.tsx to use the correct import aliases
+   - Updated import paths in App.tsx to use relative imports instead of path aliases
    - Fixed component import paths to match the project structure
    - Fixed TypeScript errors related to component imports
 
