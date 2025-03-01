@@ -1,9 +1,18 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { 
+  Plus, 
+  Search, 
+  Edit, 
+  Trash2, 
+  UploadCloud, 
+  MoreHorizontal,
+  RefreshCw 
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +39,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { supabase, formatCurrency } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const translations = {
@@ -57,6 +73,18 @@ const translations = {
     actions: "Actions",
     image: "Image",
     lowStockThreshold: "Low Stock Threshold",
+    editItem: "Edit Item",
+    deleteItem: "Delete Item",
+    confirmDelete: "Confirm Delete",
+    confirmDeleteMessage: "Are you sure you want to delete this item? It will be moved to the recycle bin and can be recovered within 30 days.",
+    dragImage: "Drag and drop image here or click to browse",
+    update: "Update",
+    recycleBin: "Recycle Bin",
+    edit: "Edit",
+    delete: "Delete",
+    viewRecycleBin: "View Recycle Bin",
+    emptyState: "No items found. Click 'Add Item' to add your first inventory item.",
+    noResults: "No items found matching your search."
   },
   fr: {
     title: "Articles",
@@ -82,6 +110,18 @@ const translations = {
     actions: "Actions",
     image: "Image",
     lowStockThreshold: "Seuil de stock bas",
+    editItem: "Modifier l'article",
+    deleteItem: "Supprimer l'article",
+    confirmDelete: "Confirmer la suppression",
+    confirmDeleteMessage: "Êtes-vous sûr de vouloir supprimer cet article ? Il sera déplacé vers la corbeille et pourra être récupéré dans les 30 jours.",
+    dragImage: "Faites glisser et déposez l'image ici ou cliquez pour parcourir",
+    update: "Mettre à jour",
+    recycleBin: "Corbeille",
+    edit: "Modifier",
+    delete: "Supprimer",
+    viewRecycleBin: "Voir la corbeille",
+    emptyState: "Aucun article trouvé. Cliquez sur 'Ajouter un article' pour ajouter votre premier article d'inventaire.",
+    noResults: "Aucun article trouvé correspondant à votre recherche."
   },
   ar: {
     title: "العناصر",
@@ -107,6 +147,18 @@ const translations = {
     actions: "الإجراءات",
     image: "الصورة",
     lowStockThreshold: "حد المخزون المنخفض",
+    editItem: "تعديل العنصر",
+    deleteItem: "حذف العنصر",
+    confirmDelete: "تأكيد الحذف",
+    confirmDeleteMessage: "هل أنت متأكد من أنك تريد حذف هذا العنصر؟ سيتم نقله إلى سلة المحذوفات ويمكن استعادته خلال 30 يومًا.",
+    dragImage: "اسحب وأفلت الصورة هنا أو انقر للتصفح",
+    update: "تحديث",
+    recycleBin: "سلة المحذوفات",
+    edit: "تعديل",
+    delete: "حذف",
+    viewRecycleBin: "عرض سلة المحذوفات",
+    emptyState: "لم يتم العثور على عناصر. انقر على 'إضافة عنصر' لإضافة أول عنصر مخزون.",
+    noResults: "لم يتم العثور على عناصر مطابقة لبحثك."
   }
 };
 
@@ -153,10 +205,19 @@ interface ItemResponse {
 const Items = () => {
   const { language } = useLanguage();
   const t = translations[language];
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [formErrors, setFormErrors] = useState({
     stockCode: false,
     productName: false,
@@ -164,6 +225,20 @@ const Items = () => {
   });
 
   const [newItem, setNewItem] = useState({
+    image: "",
+    stockCode: "",
+    productName: "",
+    boxes: 0,
+    unitsPerBox: 0,
+    boughtPrice: 0,
+    shipmentFees: 0,
+    sellingPrice: 0,
+    warehouse: "",
+    lowStockThreshold: 10,
+  });
+
+  const [editingItem, setEditingItem] = useState({
+    id: "",
     image: "",
     stockCode: "",
     productName: "",
@@ -220,6 +295,93 @@ const Items = () => {
     };
   }, []);
 
+  useEffect(() => {
+    // Handle drag and drop events for the dropzone
+    const dropzone = dropzoneRef.current;
+    if (!dropzone) return;
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.add('border-primary');
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('border-primary');
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('border-primary');
+      
+      if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+        handleImageFile(e.dataTransfer.files[0]);
+      }
+    };
+
+    dropzone.addEventListener('dragover', handleDragOver);
+    dropzone.addEventListener('dragleave', handleDragLeave);
+    dropzone.addEventListener('drop', handleDrop);
+
+    return () => {
+      dropzone.removeEventListener('dragover', handleDragOver);
+      dropzone.removeEventListener('dragleave', handleDragLeave);
+      dropzone.removeEventListener('drop', handleDrop);
+    };
+  }, []);
+
+  const handleImageFile = (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setImageFile(file);
+    
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `item-images/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('items')
+        .upload(filePath, file);
+      
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      const { data } = supabase.storage
+        .from('items')
+        .getPublicUrl(filePath);
+      
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error("Failed to upload image");
+      return null;
+    }
+  };
+
   const fetchWarehouses = async () => {
     try {
       const { data, error } = await supabase
@@ -236,6 +398,7 @@ const Items = () => {
   };
 
   const fetchItems = async () => {
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('items')
@@ -255,7 +418,8 @@ const Items = () => {
             name,
             location
           )
-        `);
+        `)
+        .is('deleted_at', null);
       
       if (error) throw error;
       
@@ -291,14 +455,16 @@ const Items = () => {
     } catch (error) {
       console.error('Error fetching items:', error);
       toast.error("Failed to fetch items");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const validateForm = () => {
+  const validateForm = (form: typeof newItem) => {
     const errors = {
-      stockCode: !newItem.stockCode.trim(),
-      productName: !newItem.productName.trim(),
-      warehouse: !newItem.warehouse,
+      stockCode: !form.stockCode.trim(),
+      productName: !form.productName.trim(),
+      warehouse: !form.warehouse,
     };
     
     setFormErrors(errors);
@@ -306,12 +472,18 @@ const Items = () => {
   };
 
   const handleAddItem = async () => {
-    if (!validateForm()) {
+    if (!validateForm(newItem)) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     try {
+      // Upload image if provided
+      let imageUrl = null;
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile);
+      }
+
       // Using a direct SQL RPC call to bypass the triggers
       const { data, error } = await supabase.rpc('add_item_without_audit', {
         p_sku: newItem.stockCode,
@@ -323,7 +495,7 @@ const Items = () => {
         p_selling_price: newItem.sellingPrice,
         p_warehouse_id: newItem.warehouse,
         p_quantity: newItem.boxes * newItem.unitsPerBox,
-        p_image: newItem.image || "/placeholder.svg",
+        p_image: imageUrl || "/placeholder.svg",
         p_low_stock_threshold: newItem.lowStockThreshold
       });
 
@@ -345,7 +517,7 @@ const Items = () => {
               selling_price: newItem.sellingPrice,
               warehouse_id: newItem.warehouse,
               quantity: newItem.boxes * newItem.unitsPerBox,
-              image: newItem.image || "/placeholder.svg",
+              image: imageUrl || "/placeholder.svg",
               low_stock_threshold: newItem.lowStockThreshold,
             }
           ])
@@ -368,18 +540,7 @@ const Items = () => {
       if (warehouseError) throw warehouseError;
 
       setIsDialogOpen(false);
-      setNewItem({
-        image: "",
-        stockCode: "",
-        productName: "",
-        boxes: 0,
-        unitsPerBox: 0,
-        boughtPrice: 0,
-        shipmentFees: 0,
-        sellingPrice: 0,
-        warehouse: "",
-        lowStockThreshold: 10,
-      });
+      resetNewItemForm();
       
       toast.success("Item added successfully");
       fetchItems(); // Refresh the items list
@@ -389,14 +550,138 @@ const Items = () => {
     }
   };
 
+  const resetNewItemForm = () => {
+    setNewItem({
+      image: "",
+      stockCode: "",
+      productName: "",
+      boxes: 0,
+      unitsPerBox: 0,
+      boughtPrice: 0,
+      shipmentFees: 0,
+      sellingPrice: 0,
+      warehouse: "",
+      lowStockThreshold: 10,
+    });
+    setImagePreview(null);
+    setImageFile(null);
+  };
+
+  const handleOpenEditDialog = async (item: Item) => {
+    setSelectedItem(item);
+    
+    try {
+      // Fetch the complete item data from Supabase
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .eq('id', item.id)
+        .single();
+      
+      if (error) throw error;
+      
+      setEditingItem({
+        id: data.id,
+        image: data.image || "",
+        stockCode: data.sku,
+        productName: data.name,
+        boxes: data.boxes,
+        unitsPerBox: data.units_per_box,
+        boughtPrice: data.bought_price,
+        shipmentFees: data.shipment_fees,
+        sellingPrice: data.selling_price,
+        warehouse: data.warehouse_id || "",
+        lowStockThreshold: data.low_stock_threshold,
+      });
+      
+      setImagePreview(data.image);
+      setIsEditDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching item details:', error);
+      toast.error("Failed to fetch item details");
+    }
+  };
+
+  const handleUpdateItem = async () => {
+    if (!validateForm(editingItem)) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      // Upload image if a new one is provided
+      let imageUrl = editingItem.image;
+      if (imageFile) {
+        const newImageUrl = await uploadImage(imageFile);
+        if (newImageUrl) {
+          imageUrl = newImageUrl;
+        }
+      }
+
+      const { error } = await supabase
+        .from('items')
+        .update({
+          sku: editingItem.stockCode,
+          name: editingItem.productName,
+          boxes: editingItem.boxes,
+          units_per_box: editingItem.unitsPerBox,
+          bought_price: editingItem.boughtPrice,
+          shipment_fees: editingItem.shipmentFees,
+          selling_price: editingItem.sellingPrice,
+          warehouse_id: editingItem.warehouse,
+          quantity: editingItem.boxes * editingItem.unitsPerBox,
+          image: imageUrl,
+          low_stock_threshold: editingItem.lowStockThreshold,
+        })
+        .eq('id', editingItem.id);
+
+      if (error) throw error;
+
+      setIsEditDialogOpen(false);
+      resetNewItemForm();
+      
+      toast.success("Item updated successfully");
+      fetchItems(); // Refresh the items list
+    } catch (error) {
+      console.error('Error updating item:', error);
+      toast.error("Failed to update item: " + (error as Error).message);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    if (!selectedItem) return;
+    
+    try {
+      // Soft delete the item by setting deleted_at
+      const { error } = await supabase
+        .from('items')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', selectedItem.id);
+      
+      if (error) throw error;
+      
+      setIsDeleteDialogOpen(false);
+      setSelectedItem(null);
+      
+      toast.success("Item moved to recycle bin");
+      fetchItems(); // Refresh the items list
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      toast.error("Failed to delete item: " + (error as Error).message);
+    }
+  };
+
   return (
-    <div className="container py-8 animate-in">
+    <div className="container py-8 animate-in" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground mt-2">{t.description}</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) resetNewItemForm();
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -411,16 +696,37 @@ const Items = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="flex flex-col items-center gap-4">
-                <img
-                  src={newItem.image || "/placeholder.svg"}
-                  alt="Product"
-                  className="w-32 h-32 object-cover rounded-lg border"
+              {/* Image upload dropzone */}
+              <div 
+                ref={dropzoneRef}
+                className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-32 h-32 object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center text-center p-4">
+                    <UploadCloud className="w-10 h-10 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">{t.dragImage}</p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleImageFile(e.target.files[0]);
+                    }
+                  }}
                 />
-                <Button variant="outline" onClick={() => {}}>
-                  {t.uploadImage}
-                </Button>
               </div>
+              
               <div className="grid gap-2">
                 <Label htmlFor="stockCode" className="flex items-center gap-1">
                   {t.stockCode}
@@ -595,10 +901,16 @@ const Items = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="text-center py-8">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto" />
+                  </TableCell>
+                </TableRow>
+              ) : items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                    No items found. Click 'Add Item' to add your first inventory item.
+                    {t.emptyState}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -625,8 +937,8 @@ const Items = () => {
                       <TableCell>{item.productName}</TableCell>
                       <TableCell>{item.boxes}</TableCell>
                       <TableCell>{item.unitsPerBox}</TableCell>
-                      <TableCell>{item.initialPrice}</TableCell>
-                      <TableCell>{item.sellingPrice}</TableCell>
+                      <TableCell>{formatCurrency(item.initialPrice)}</TableCell>
+                      <TableCell>{formatCurrency(item.sellingPrice)}</TableCell>
                       <TableCell>{item.location}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -639,9 +951,29 @@ const Items = () => {
                       </TableCell>
                       <TableCell>{item.unitsLeft}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">
-                          •••
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleOpenEditDialog(item)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              {t.edit}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => {
+                                setSelectedItem(item);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {t.delete}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -649,7 +981,228 @@ const Items = () => {
             </TableBody>
           </Table>
         </div>
+        
+        {/* Recycle bin button (fixed at the bottom right) */}
+        <div className="fixed bottom-8 right-8">
+          <Button 
+            variant="outline" 
+            className="rounded-full w-12 h-12 p-0 shadow-md"
+            onClick={() => navigate('/recycle-bin')}
+            title={t.viewRecycleBin}
+          >
+            <Trash2 className="h-5 w-5" />
+          </Button>
+        </div>
       </Card>
+
+      {/* Edit Item Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) {
+          setImagePreview(null);
+          setImageFile(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t.editItem}</DialogTitle>
+            <DialogDescription>
+              Update the item details below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {/* Image upload dropzone */}
+            <div 
+              ref={dropzoneRef}
+              className="flex flex-col items-center gap-4 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {imagePreview || editingItem.image ? (
+                <img
+                  src={imagePreview || editingItem.image}
+                  alt="Preview"
+                  className="w-32 h-32 object-cover rounded-lg"
+                />
+              ) : (
+                <div className="flex flex-col items-center text-center p-4">
+                  <UploadCloud className="w-10 h-10 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">{t.dragImage}</p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleImageFile(e.target.files[0]);
+                  }
+                }}
+              />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="edit-stockCode" className="flex items-center gap-1">
+                {t.stockCode}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="edit-stockCode"
+                value={editingItem.stockCode}
+                onChange={(e) =>
+                  setEditingItem({ ...editingItem, stockCode: e.target.value })
+                }
+                className={formErrors.stockCode ? "border-red-500" : ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-productName" className="flex items-center gap-1">
+                {t.productName}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="edit-productName"
+                value={editingItem.productName}
+                onChange={(e) =>
+                  setEditingItem({ ...editingItem, productName: e.target.value })
+                }
+                className={formErrors.productName ? "border-red-500" : ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-warehouse" className="flex items-center gap-1">
+                {t.warehouse}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={editingItem.warehouse}
+                onValueChange={(value) =>
+                  setEditingItem({ ...editingItem, warehouse: value })
+                }
+              >
+                <SelectTrigger
+                  className={formErrors.warehouse ? "border-red-500" : ""}
+                >
+                  <SelectValue placeholder={t.selectWarehouse} />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name} ({warehouse.location})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-boxes">{t.boxes}</Label>
+                <Input
+                  id="edit-boxes"
+                  type="number"
+                  min="0"
+                  value={editingItem.boxes}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, boxes: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-unitsPerBox">{t.unitsPerBox}</Label>
+                <Input
+                  id="edit-unitsPerBox"
+                  type="number"
+                  min="0"
+                  value={editingItem.unitsPerBox}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, unitsPerBox: Number(e.target.value) })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-boughtPrice">{t.boughtPrice}</Label>
+                <Input
+                  id="edit-boughtPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingItem.boughtPrice}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, boughtPrice: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-shipmentFees">{t.shipmentFees}</Label>
+                <Input
+                  id="edit-shipmentFees"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingItem.shipmentFees}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, shipmentFees: Number(e.target.value) })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-sellingPrice">{t.sellingPrice}</Label>
+                <Input
+                  id="edit-sellingPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editingItem.sellingPrice}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, sellingPrice: Number(e.target.value) })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-lowStockThreshold">{t.lowStockThreshold}</Label>
+                <Input
+                  id="edit-lowStockThreshold"
+                  type="number"
+                  min="0"
+                  value={editingItem.lowStockThreshold}
+                  onChange={(e) =>
+                    setEditingItem({ ...editingItem, lowStockThreshold: Number(e.target.value) })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-4">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              {t.cancel}
+            </Button>
+            <Button onClick={handleUpdateItem}>{t.update}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.confirmDelete}</DialogTitle>
+            <DialogDescription>{t.confirmDeleteMessage}</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              {t.cancel}
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteItem}>
+              {t.delete}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

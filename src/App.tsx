@@ -1,78 +1,53 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { LanguageProvider } from "./contexts/LanguageContext";
-import { AuthProvider } from "./contexts/AuthContext";
-import AppLayout from "./components/AppLayout";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import Inventory from "./pages/Inventory";
+import React, { Suspense } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
+import { cn } from "@/lib/utils";
+import { Dashboard, Index, Inventory, Orders, Products, Customers, Warehouses, UserManagement, Settings, NotFound } from "@/pages";
+import { Sidebar } from "@/components/sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { TailwindIndicator } from "@/components/tailwind-indicator";
+import { Shell } from "@/components/shell";
+import { ModeToggle } from "@/components/mode-toggle";
+import { LanguageProvider } from "@/contexts/LanguageContext";
+import { Toaster } from "@/components/ui/toaster"
+
+// Add the RecycleBin import
+import RecycleBin from "./pages/RecycleBin";
 import Items from "./pages/Items";
-import Warehouses from "./pages/Warehouses";
-import Orders from "./pages/Orders";
-import Customers from "./pages/Customers";
-import Settings from "./pages/Settings";
-import UserManagement from "./pages/UserManagement";
-import NotFound from "./pages/NotFound";
-import { useAuth } from "./contexts/AuthContext";
 
-const queryClient = new QueryClient();
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return null;
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <AppLayout>{children}</AppLayout>;
-};
-
-const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return null;
-  }
-  
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <AuthProvider>
-        <LanguageProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <Routes>
-              <Route path="/" element={<PublicRoute><Index /></PublicRoute>} />
-              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-              <Route path="/inventory/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
-              <Route path="/inventory/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
-              <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-              <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/user-management" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </TooltipProvider>
-        </LanguageProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <LanguageProvider>
+      <Router>
+        <div className="flex min-h-screen flex-col">
+          <SiteHeader />
+          <main className="flex flex-1">
+            <Sidebar className="w-64 border-r py-4" />
+            <Shell className="ml-64 py-12">
+              <Suspense fallback={<div>Loading...</div>}>
+                {/* Update the Routes to include the RecycleBin route */}
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/inventory/items" element={<Items />} />
+                  <Route path="/recycle-bin" element={<RecycleBin />} />
+                  <Route path="/inventory" element={<Inventory />} />
+                  <Route path="/orders" element={<Orders />} />
+                  <Route path="/products" element={<Products />} />
+                  <Route path="/customers" element={<Customers />} />
+                  <Route path="/warehouses" element={<Warehouses />} />
+                  <Route path="/user-management" element={<UserManagement />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </Shell>
+          </main>
+          <Toaster />
+        </div>
+      </Router>
+    </LanguageProvider>
+  );
+}
 
 export default App;
