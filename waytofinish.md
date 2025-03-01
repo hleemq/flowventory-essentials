@@ -37,5 +37,13 @@
    - Updated component structure to use only available components
    - Fixed TypeScript errors related to component imports
 
+7. Code Refactoring
+   - Refactored the Items.tsx page into smaller, focused components
+   - Created reusable hooks for items and warehouses management
+   - Extracted translations into a separate file
+   - Improved type safety with proper TypeScript interfaces
+   - Implemented component-based architecture following best practices
+   - Improved code organization and maintainability
+
 All features now fully support RTL layouts and multiple languages (ar, fr, en).
 All monetary values support MAD, EUR, and USD currencies.

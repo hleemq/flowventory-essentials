@@ -19,7 +19,7 @@ import UserManagement from "./pages/UserManagement";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import RecycleBin from "./pages/RecycleBin";
-import Items from "./pages/Items";
+import Items from "./pages/Items"; // This now imports from the index.tsx in the Items folder
 
 function App() {
   return (
