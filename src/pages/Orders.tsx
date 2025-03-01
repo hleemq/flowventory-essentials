@@ -293,7 +293,7 @@ const Orders = () => {
       
       console.log("Fetched orders:", data);
       
-      const formattedOrders: Order[] = (data || []).map(order => ({
+      const formattedOrders: Order[] = (data || []).map((order: OrderResponse) => ({
         id: order.id,
         created_at: order.created_at,
         status: order.status,
