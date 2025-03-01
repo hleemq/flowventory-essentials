@@ -3,13 +3,13 @@ import React, { Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import { cn } from "@/lib/utils";
-import { Sidebar } from "./components/sidebar";
-import { SiteHeader } from "./components/site-header";
-import { TailwindIndicator } from "./components/tailwind-indicator";
-import { Shell } from "./components/shell";
-import { ModeToggle } from "./components/mode-toggle";
-import { LanguageProvider } from "./contexts/LanguageContext";
-import { Toaster } from "./components/ui/toaster";
+import { Sidebar } from "@/components/ui/sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { TailwindIndicator } from "@/components/tailwind-indicator";
+import { Shell } from "@/components/shell";
+import { ModeToggle } from "@/components/mode-toggle";
+import { LanguageProvider } from "@/contexts/LanguageContext";
+import { Toaster } from "@/components/ui/toaster";
 
 // Individual page imports instead of the barrel import
 import Dashboard from "./pages/Dashboard";
