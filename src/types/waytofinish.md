@@ -31,5 +31,9 @@
    - Improved responsive design
    - Implemented complete translation support for English, French, and Arabic
 
+6. Fixed build and deployment issues
+   - Updated import paths in App.tsx to use relative imports instead of path aliases
+   - Fixed TypeScript errors related to component imports
+
 All features now fully support RTL layouts and multiple languages (ar, fr, en).
 All monetary values support MAD, EUR, and USD currencies.

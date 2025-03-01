@@ -1,17 +1,27 @@
+
 import React, { Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import { cn } from "@/lib/utils";
-import { Dashboard, Index, Inventory, Orders, Products, Customers, Warehouses, UserManagement, Settings, NotFound } from "@/pages";
-import { Sidebar } from "@/components/sidebar";
-import { SiteHeader } from "@/components/site-header";
-import { TailwindIndicator } from "@/components/tailwind-indicator";
-import { Shell } from "@/components/shell";
-import { ModeToggle } from "@/components/mode-toggle";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import { Toaster } from "@/components/ui/toaster"
+import { cn } from "./lib/utils";
+import { Sidebar } from "./components/sidebar";
+import { SiteHeader } from "./components/site-header";
+import { TailwindIndicator } from "./components/tailwind-indicator";
+import { Shell } from "./components/shell";
+import { ModeToggle } from "./components/mode-toggle";
+import { LanguageProvider } from "./contexts/LanguageContext";
+import { Toaster } from "./components/ui/toaster";
 
-// Add the RecycleBin import
+// Individual page imports instead of the barrel import
+import Dashboard from "./pages/Dashboard";
+import Index from "./pages/Index";
+import Inventory from "./pages/Inventory";
+import Orders from "./pages/Orders";
+import Products from "./pages/Products";
+import Customers from "./pages/Customers";
+import Warehouses from "./pages/Warehouses";
+import UserManagement from "./pages/UserManagement";
+import Settings from "./pages/Settings";
+import NotFound from "./pages/NotFound";
 import RecycleBin from "./pages/RecycleBin";
 import Items from "./pages/Items";
 
@@ -25,7 +35,6 @@ function App() {
             <Sidebar className="w-64 border-r py-4" />
             <Shell className="ml-64 py-12">
               <Suspense fallback={<div>Loading...</div>}>
-                {/* Update the Routes to include the RecycleBin route */}
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/dashboard" element={<Dashboard />} />
