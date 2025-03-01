@@ -2,7 +2,7 @@
 import React, { Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import { cn } from "./lib/utils";
+import { cn } from "@/lib/utils";
 import { Sidebar } from "./components/sidebar";
 import { SiteHeader } from "./components/site-header";
 import { TailwindIndicator } from "./components/tailwind-indicator";
