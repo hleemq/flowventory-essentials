@@ -298,7 +298,7 @@ const Orders = () => {
         created_at: order.created_at,
         status: order.status,
         total_amount: order.total_amount,
-        customer: order.customer || null
+        customer: order.customer
       }));
       
       setOrders(formattedOrders);

@@ -217,7 +217,7 @@ const Items = () => {
 
   const fetchItems = async () => {
     try {
-      // Fix the relationship syntax by specifying the exact relationship to use
+      // Fix the relationship syntax by using correct join format
       const { data, error } = await supabase
         .from('items')
         .select(`
@@ -231,7 +231,8 @@ const Items = () => {
           shipment_fees,
           selling_price,
           quantity,
-          warehouses:warehouses!items_warehouse_id_fkey (
+          warehouse_id,
+          warehouses (
             name,
             location
           )
@@ -241,19 +242,29 @@ const Items = () => {
       
       console.log("Fetched items:", data);
       
-      const formattedItems = data.map(item => ({
-        id: item.id,
-        image: item.image || "/placeholder.svg",
-        stockCode: item.sku,
-        productName: item.name,
-        boxes: item.boxes,
-        unitsPerBox: item.units_per_box,
-        initialPrice: item.bought_price + item.shipment_fees,
-        sellingPrice: item.selling_price,
-        location: item.warehouses?.name || '',
-        stockStatus: item.quantity > 0 ? "In Stock" : "Out of Stock",
-        unitsLeft: item.quantity,
-      }));
+      const formattedItems = data.map(item => {
+        // Handle the warehouses object correctly - it could be null or a single object
+        let warehouseName = '';
+        
+        if (item.warehouses) {
+          // warehouses is a single object, not an array
+          warehouseName = item.warehouses.name || '';
+        }
+        
+        return {
+          id: item.id,
+          image: item.image || "/placeholder.svg",
+          stockCode: item.sku,
+          productName: item.name,
+          boxes: item.boxes,
+          unitsPerBox: item.units_per_box,
+          initialPrice: item.bought_price + item.shipment_fees,
+          sellingPrice: item.selling_price,
+          location: warehouseName,
+          stockStatus: item.quantity > 0 ? "In Stock" : "Out of Stock",
+          unitsLeft: item.quantity,
+        };
+      });
 
       setItems(formattedItems);
     } catch (error) {
