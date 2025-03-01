@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -260,8 +261,11 @@ const Items = () => {
       
       console.log("Fetched items:", data);
       
-      const formattedItems = (data || []).map((item: ItemResponse) => {
-        // Handle the warehouses object correctly - it could be null or a single object
+      // Explicitly type the data from Supabase as any to allow us to work around the type issue
+      const supabaseData = data as any[];
+      
+      const formattedItems = (supabaseData || []).map((item) => {
+        // Handle the warehouses object correctly
         let warehouseName = '';
         
         if (item.warehouses) {
