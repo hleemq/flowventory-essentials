@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -171,7 +170,8 @@ const Items = () => {
           schema: 'public',
           table: 'warehouses'
         },
-        () => {
+        (payload) => {
+          console.log('Warehouse update received:', payload);
           fetchWarehouses();
         }
       )
@@ -187,7 +187,8 @@ const Items = () => {
           schema: 'public',
           table: 'items'
         },
-        () => {
+        (payload) => {
+          console.log('Item update received:', payload);
           fetchItems();
         }
       )
@@ -216,12 +217,21 @@ const Items = () => {
 
   const fetchItems = async () => {
     try {
-      // Use the proper relationship syntax for Supabase
+      // Fix the relationship syntax by specifying the exact relationship to use
       const { data, error } = await supabase
         .from('items')
         .select(`
-          *,
-          warehouses:warehouse_id (
+          id,
+          image,
+          sku,
+          name,
+          boxes,
+          units_per_box,
+          bought_price,
+          shipment_fees,
+          selling_price,
+          quantity,
+          warehouses:warehouses!items_warehouse_id_fkey (
             name,
             location
           )

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -127,7 +126,6 @@ const translations = {
   }
 };
 
-// Define the structure of the API response from Supabase
 interface OrderResponse {
   id: string;
   created_at: string;
@@ -139,7 +137,6 @@ interface OrderResponse {
   } | null;
 }
 
-// Define our application Order interface
 interface Order {
   id: string;
   created_at: string;
@@ -208,20 +205,73 @@ const Orders = () => {
           schema: 'public',
           table: 'orders'
         },
-        () => {
+        (payload) => {
+          console.log('Order update received:', payload);
           fetchOrders();
+        }
+      )
+      .subscribe();
+
+    const orderItemsChannel = supabase
+      .channel('order-items-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_items'
+        },
+        (payload) => {
+          console.log('Order item update received:', payload);
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    const customersChannel = supabase
+      .channel('customers-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers'
+        },
+        (payload) => {
+          console.log('Customer update received:', payload);
+          fetchCustomers();
+        }
+      )
+      .subscribe();
+
+    const productsChannel = supabase
+      .channel('products-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'items'
+        },
+        (payload) => {
+          console.log('Product update received:', payload);
+          fetchProducts();
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(orderItemsChannel);
+      supabase.removeChannel(customersChannel);
+      supabase.removeChannel(productsChannel);
     };
   }, []);
 
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching orders...");
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -229,22 +279,26 @@ const Orders = () => {
           created_at,
           status,
           total_amount,
-          customer:customer_id (
+          customer:customers!orders_customer_id_fkey (
             id,
             name
           )
         `)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching orders:", error);
+        throw error;
+      }
       
-      // Convert the raw response to our Order interface
+      console.log("Fetched orders:", data);
+      
       const formattedOrders: Order[] = (data || []).map(order => ({
         id: order.id,
         created_at: order.created_at,
         status: order.status,
         total_amount: order.total_amount,
-        customer: order.customer ? order.customer[0] || null : null
+        customer: order.customer || null
       }));
       
       setOrders(formattedOrders);
@@ -258,11 +312,13 @@ const Orders = () => {
 
   const fetchCustomers = async () => {
     try {
+      console.log("Fetching customers...");
       const { data, error } = await supabase
         .from('customers')
         .select('*');
       
       if (error) throw error;
+      console.log("Fetched customers:", data);
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -272,12 +328,14 @@ const Orders = () => {
 
   const fetchProducts = async () => {
     try {
+      console.log("Fetching products...");
       const { data, error } = await supabase
         .from('items')
         .select('id, name, sku, quantity, units_per_box, selling_price')
         .gt('quantity', 0);
       
       if (error) throw error;
+      console.log("Fetched products:", data);
       setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -297,7 +355,6 @@ const Orders = () => {
         return;
       }
 
-      // Create the order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert([
@@ -312,7 +369,6 @@ const Orders = () => {
 
       if (orderError) throw orderError;
 
-      // Create order items
       const orderItemsToInsert = newOrder.items.map(item => ({
         order_id: orderData.id,
         item_id: item.product.id,
@@ -342,7 +398,6 @@ const Orders = () => {
 
   const handleDeleteOrder = async (orderId: string) => {
     try {
-      // First delete all order items
       const { error: deleteItemsError } = await supabase
         .from('order_items')
         .delete()
@@ -350,7 +405,6 @@ const Orders = () => {
 
       if (deleteItemsError) throw deleteItemsError;
 
-      // Then delete the order
       const { error: deleteOrderError } = await supabase
         .from('orders')
         .delete()
@@ -494,7 +548,6 @@ const Orders = () => {
                               variant="outline" 
                               size="sm" 
                               onClick={() => {
-                                // Add product to order items
                                 if (!newOrder.items.some(item => item.product.id === product.id)) {
                                   const newItem: OrderItem = {
                                     id: `temp-${Date.now()}`,
