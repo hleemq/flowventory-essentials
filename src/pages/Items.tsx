@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -130,6 +131,25 @@ interface Warehouse {
   items_count: number;
 }
 
+// Define the shape of what Supabase returns for items
+interface ItemResponse {
+  id: string;
+  image: string | null;
+  sku: string;
+  name: string;
+  boxes: number;
+  units_per_box: number;
+  bought_price: number;
+  shipment_fees: number;
+  selling_price: number;
+  quantity: number;
+  warehouse_id: string | null;
+  warehouses?: {  // Make this a single object, not an array
+    name: string;
+    location: string;
+  } | null;
+}
+
 const Items = () => {
   const { language } = useLanguage();
   const t = translations[language];
@@ -217,7 +237,7 @@ const Items = () => {
 
   const fetchItems = async () => {
     try {
-      // Fix the relationship syntax by using correct join format
+      // Fix the relationship syntax by using one of the suggested relationships
       const { data, error } = await supabase
         .from('items')
         .select(`
@@ -232,7 +252,7 @@ const Items = () => {
           selling_price,
           quantity,
           warehouse_id,
-          warehouses (
+          warehouses:warehouses!items_warehouse_id_fkey (
             name,
             location
           )
@@ -242,12 +262,11 @@ const Items = () => {
       
       console.log("Fetched items:", data);
       
-      const formattedItems = data.map(item => {
+      const formattedItems = (data || []).map((item: ItemResponse) => {
         // Handle the warehouses object correctly - it could be null or a single object
         let warehouseName = '';
         
         if (item.warehouses) {
-          // warehouses is a single object, not an array
           warehouseName = item.warehouses.name || '';
         }
         

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -293,12 +294,13 @@ const Orders = () => {
       
       console.log("Fetched orders:", data);
       
-      const formattedOrders: Order[] = (data || []).map((order: OrderResponse) => ({
+      // Make sure we handle the data correctly - 'customer' is a single object, not an array
+      const formattedOrders: Order[] = (data || []).map((order: any) => ({
         id: order.id,
         created_at: order.created_at,
         status: order.status,
         total_amount: order.total_amount,
-        customer: order.customer
+        customer: order.customer  // Already in the correct format as a single object
       }));
       
       setOrders(formattedOrders);
