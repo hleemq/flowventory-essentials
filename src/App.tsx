@@ -1,65 +1,78 @@
-
-import React, { Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
-import { cn } from "@/lib/utils";
-import { Sidebar } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/toaster";
-import { LanguageProvider } from "@/contexts/LanguageContext";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AuthProvider } from "@/contexts/AuthContext";
-
-// Individual page imports instead of the barrel import
-import Dashboard from "./pages/Dashboard";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { LanguageProvider } from "./contexts/LanguageContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import AppLayout from "./components/AppLayout";
 import Index from "./pages/Index";
+import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
-import Orders from "./pages/Orders";
-import Products from "./pages/Products";
-import Customers from "./pages/Customers";
+import Items from "./pages/Items";
 import Warehouses from "./pages/Warehouses";
-import UserManagement from "./pages/UserManagement";
+import Orders from "./pages/Orders";
+import Customers from "./pages/Customers";
 import Settings from "./pages/Settings";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
-import RecycleBin from "./pages/RecycleBin";
-import Items from "./pages/Items"; // This now imports from the index.tsx in the Items folder
+import { useAuth } from "./contexts/AuthContext";
 
-function App() {
-  return (
-    <AuthProvider>
-      <LanguageProvider>
-        <SidebarProvider>
-          <Router>
-            <div className="flex min-h-screen flex-col">
-              <div className="flex-1">
-                <main className="flex flex-1">
-                  <Sidebar className="w-64 border-r py-4" />
-                  <div className="ml-64 py-12">
-                    <Suspense fallback={<div>Loading...</div>}>
-                      <Routes>
-                        <Route path="/" element={<Index />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/inventory/items" element={<Items />} />
-                        <Route path="/recycle-bin" element={<RecycleBin />} />
-                        <Route path="/inventory" element={<Inventory />} />
-                        <Route path="/orders" element={<Orders />} />
-                        <Route path="/products" element={<Products />} />
-                        <Route path="/customers" element={<Customers />} />
-                        <Route path="/warehouses" element={<Warehouses />} />
-                        <Route path="/user-management" element={<UserManagement />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </Suspense>
-                  </div>
-                </main>
-              </div>
-              <Toaster />
-            </div>
-          </Router>
-        </SidebarProvider>
-      </LanguageProvider>
-    </AuthProvider>
-  );
-}
+const queryClient = new QueryClient();
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return null;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <AppLayout>{children}</AppLayout>;
+};
+
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return null;
+  }
+  
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <BrowserRouter>
+      <AuthProvider>
+        <LanguageProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route path="/" element={<PublicRoute><Index /></PublicRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+              <Route path="/inventory/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
+              <Route path="/inventory/warehouses" element={<ProtectedRoute><Warehouses /></ProtectedRoute>} />
+              <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+              <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/user-management" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TooltipProvider>
+        </LanguageProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  </QueryClientProvider>
+);
 
 export default App;

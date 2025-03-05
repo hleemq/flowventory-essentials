@@ -20,14 +20,4 @@ export const supportedCurrencies = {
   }
 };
 
-// Create a helper function to format currency values
-export const formatCurrency = (value: number, currency = 'MAD') => {
-  const curr = supportedCurrencies[currency as keyof typeof supportedCurrencies];
-  if (curr.symbol === 'MAD') {
-    return `${value} ${curr.symbol}`;
-  } else {
-    return `${curr.symbol} ${value}`;
-  }
-};
-
 export const supabase = createClient(supabaseUrl, supabaseKey);
