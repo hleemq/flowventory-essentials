@@ -87,13 +87,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "item_changes_changed_by_fkey"
-            columns: ["changed_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "item_changes_item_id_fkey"
             columns: ["item_id"]
             isOneToOne: false

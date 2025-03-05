@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
@@ -170,7 +169,6 @@ interface Warehouse {
   items_count: number;
 }
 
-// Define the shapes for the forms
 interface NewItem {
   image: string | File;
   stockCode: string;
@@ -189,7 +187,6 @@ interface EditingItem extends NewItem {
   id: string;
 }
 
-// Define different dialog modes
 type DialogMode = 'add' | 'edit' | 'delete' | null;
 
 const Items = () => {
@@ -230,7 +227,6 @@ const Items = () => {
     fetchWarehouses();
     fetchItems();
 
-    // Subscribe to realtime updates for warehouses
     const warehouseChannel = supabase
       .channel('warehouse-updates')
       .on(
@@ -247,7 +243,6 @@ const Items = () => {
       )
       .subscribe();
 
-    // Subscribe to realtime updates for items
     const itemsChannel = supabase
       .channel('items-updates')
       .on(
@@ -264,9 +259,26 @@ const Items = () => {
       )
       .subscribe();
 
+    const settingsChannel = supabase
+      .channel('settings-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'settings'
+        },
+        (payload) => {
+          console.log('Settings update received:', payload);
+          fetchItems();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(warehouseChannel);
       supabase.removeChannel(itemsChannel);
+      supabase.removeChannel(settingsChannel);
     };
   }, []);
 
@@ -313,11 +325,9 @@ const Items = () => {
       
       console.log("Fetched items:", data);
       
-      // Explicitly type the data from Supabase as any to allow us to work around the type issue
       const supabaseData = data as any[];
       
       const formattedItems = (supabaseData || []).map((item) => {
-        // Handle the warehouses object correctly
         let warehouseName = '';
         
         if (item.warehouses) {
@@ -355,7 +365,6 @@ const Items = () => {
   };
 
   const validateAndSetImage = (file: File) => {
-    // Check file type
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       toast.error(t.imageUploadError);
@@ -363,24 +372,20 @@ const Items = () => {
       return;
     }
     
-    // Check file size (5MB = 5 * 1024 * 1024 bytes)
     if (file.size > 5 * 1024 * 1024) {
       toast.error(t.imageUploadError);
       setFormErrors({...formErrors, image: true});
       return;
     }
 
-    // Valid image
     setFormErrors({...formErrors, image: false});
     
-    // Create a preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
     };
     reader.readAsDataURL(file);
     
-    // Set the file in the form data
     if (dialogMode === 'add') {
       setNewItem({...newItem, image: file});
     } else if (dialogMode === 'edit' && selectedItem) {
@@ -449,13 +454,11 @@ const Items = () => {
     }
 
     try {
-      // Handle image upload if it's a File object
       let imageUrl = newItem.image as string;
       if (newItem.image instanceof File) {
         imageUrl = await uploadImage(newItem.image);
       }
 
-      // Using a direct SQL RPC call to bypass the triggers
       const { data, error } = await supabase.rpc('add_item_without_audit', {
         p_sku: newItem.stockCode,
         p_name: newItem.productName,
@@ -472,10 +475,8 @@ const Items = () => {
       });
 
       if (error) {
-        // Fallback to direct insert if RPC is not available
         console.log("Falling back to direct insert due to RPC error:", error);
         
-        // Use prepared statement syntax with the auth.uid() function disabled for this insert
         const { data: itemData, error: itemError } = await supabase
           .from('items')
           .insert([
@@ -502,7 +503,6 @@ const Items = () => {
         console.log("Item added successfully via RPC:", data);
       }
 
-      // Update warehouse items count
       const { error: warehouseError } = await supabase
         .from('warehouses')
         .update({ 
@@ -516,7 +516,7 @@ const Items = () => {
       resetForm();
       
       toast.success("Item added successfully");
-      fetchItems(); // Refresh the items list
+      fetchItems();
     } catch (error) {
       console.error('Error adding item:', error);
       toast.error("Failed to add item: " + (error as Error).message);
@@ -530,7 +530,6 @@ const Items = () => {
     }
 
     try {
-      // Handle image upload if it's a File object
       let imageUrl = newItem.image as string;
       if (newItem.image instanceof File) {
         imageUrl = await uploadImage(newItem.image);
@@ -560,7 +559,7 @@ const Items = () => {
       resetForm();
       
       toast.success("Item updated successfully");
-      fetchItems(); // Refresh the items list
+      fetchItems();
     } catch (error) {
       console.error('Error updating item:', error);
       toast.error("Failed to update item: " + (error as Error).message);
@@ -571,7 +570,6 @@ const Items = () => {
     if (!selectedItem) return;
 
     try {
-      // Soft delete by setting deleted_at timestamp
       const { error } = await supabase
         .from('items')
         .update({
@@ -585,7 +583,7 @@ const Items = () => {
       setSelectedItem(null);
       
       toast.success("Item moved to trash");
-      fetchItems(); // Refresh the items list
+      fetchItems();
     } catch (error) {
       console.error('Error deleting item:', error);
       toast.error("Failed to delete item: " + (error as Error).message);
@@ -622,7 +620,6 @@ const Items = () => {
   };
 
   const openEditDialog = (item: Item) => {
-    // Find the original item data
     const { data, error } = supabase
       .from('items')
       .select('*')
@@ -664,7 +661,8 @@ const Items = () => {
   };
 
   const getCurrencySymbol = (currencyCode: string) => {
-    return supportedCurrencies[currencyCode]?.symbol || currencyCode;
+    const currency = supportedCurrencies[currencyCode];
+    return currency ? currency.symbol : currencyCode;
   };
 
   return (
@@ -779,7 +777,6 @@ const Items = () => {
         </div>
       </Card>
 
-      {/* Floating button for Corbeille (trash bin) */}
       <div className="fixed bottom-6 right-6">
         <Button 
           onClick={() => navigate('/corbeille')} 
@@ -792,7 +789,6 @@ const Items = () => {
         </Button>
       </div>
 
-      {/* Add Item Dialog */}
       <Dialog open={dialogMode === 'add'} onOpenChange={(open) => !open && setDialogMode(null)}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -1003,7 +999,6 @@ const Items = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Item Dialog */}
       <Dialog open={dialogMode === 'edit'} onOpenChange={(open) => !open && setDialogMode(null)}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -1215,7 +1210,6 @@ const Items = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={dialogMode === 'delete'} onOpenChange={(open) => !open && setDialogMode(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

@@ -1,5 +1,4 @@
 
-
 # Implementation Steps and Updates
 
 ## 1. Database Configuration
@@ -8,6 +7,7 @@
 - Setup cron job to run the cleanup function daily
 - Created policy to allow users to view their soft-deleted items
 - Added `currency` column to items table to support multi-currency functionality
+- Fixed foreign key constraint error on item deletion by modifying the `item_changes_changed_by_fkey` constraint
 
 ## 2. Image Upload Feature
 - Enhanced the item forms (add/edit) with drag-and-drop image upload
@@ -28,11 +28,13 @@
 - Enhanced item management with proper edit and delete workflows
 - Added confirmation dialog for deleting items
 - Implemented proper error handling and success messages
+- Fixed foreign key constraint error when deleting items to ensure smooth deletion process
 
 ## 5. Multi-Currency Support
 - Added currency selection in the item forms
 - Display currency symbols next to prices in the item list
 - Enhanced client-side code to handle different currencies
+- Fixed issue with currency settings not updating correctly in the UI
 
 ## 6. UI/UX Improvements
 - Added better form validation and error handling
@@ -46,4 +48,4 @@
 - Add inventory movement tracking
 - Enhance reporting capabilities
 - Implement user permissions for item management
-
+- Refactor Items.tsx into smaller, more maintainable components
