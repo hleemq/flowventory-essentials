@@ -107,6 +107,7 @@ export type Database = {
           bought_price: number
           boxes: number
           created_at: string | null
+          deleted_at: string | null
           id: string
           image: string | null
           low_stock_threshold: number
@@ -124,6 +125,7 @@ export type Database = {
           bought_price: number
           boxes: number
           created_at?: string | null
+          deleted_at?: string | null
           id?: string
           image?: string | null
           low_stock_threshold: number
@@ -141,6 +143,7 @@ export type Database = {
           bought_price?: number
           boxes?: number
           created_at?: string | null
+          deleted_at?: string | null
           id?: string
           image?: string | null
           low_stock_threshold?: number
@@ -700,6 +703,10 @@ export type Database = {
           schema_name: string
         }
         Returns: boolean
+      }
+      clean_deleted_items: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       create_organization_schema: {
         Args: {

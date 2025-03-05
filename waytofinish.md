@@ -1,1 +1,45 @@
 
+# Implementation Steps and Updates
+
+## 1. Database Configuration
+- Added `deleted_at` column to the `items` table for soft delete functionality
+- Created database function `clean_deleted_items()` to automatically remove items older than 30 days from the trash
+- Setup cron job to run the cleanup function daily
+- Created policy to allow users to view their soft-deleted items
+
+## 2. Image Upload Feature
+- Enhanced the item forms (add/edit) with drag-and-drop image upload
+- Added image validation for file type (JPEG, PNG, WebP) and size (max 5MB)
+- Created image preview functionality in the forms
+- Integrated with Supabase Storage for storing images
+
+## 3. Trash Bin (Corbeille) Implementation
+- Created a new Corbeille page for viewing deleted items
+- Implemented soft delete functionality (moving items to trash instead of permanently deleting)
+- Added ability to restore items from the trash
+- Added permanent delete capability from the trash
+- Implemented 30-day automatic cleanup for deleted items
+- Added floating button with trash icon for accessing the Corbeille page
+
+## 4. Edit and Delete Actions
+- Enhanced item management with proper edit and delete workflows
+- Added confirmation dialog for deleting items
+- Implemented proper error handling and success messages
+
+## 5. Multi-Currency Support
+- Added currency selection in the item forms
+- Display currency symbols next to prices in the item list
+- Enhanced client-side code to handle different currencies
+
+## 6. UI/UX Improvements
+- Added better form validation and error handling
+- Implemented responsive design for all screens
+- Added RTL support for Arabic language
+- Enhanced accessibility features
+- Added date localization for better international user experience
+
+## Next Steps
+- Implement bulk actions for items (bulk delete, bulk edit)
+- Add inventory movement tracking
+- Enhance reporting capabilities
+- Implement user permissions for item management

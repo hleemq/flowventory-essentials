@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +17,7 @@ import Customers from "./pages/Customers";
 import Settings from "./pages/Settings";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
+import Corbeille from "./pages/Corbeille";
 import { useAuth } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
@@ -66,6 +68,7 @@ const App = () => (
               <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/user-management" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+              <Route path="/corbeille" element={<ProtectedRoute><Corbeille /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </TooltipProvider>

@@ -20,4 +20,44 @@ export const supportedCurrencies = {
   }
 };
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Create Supabase client with storage
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true
+  },
+  global: {
+    fetch: fetch
+  }
+});
+
+// Initialize storage bucket if not exists
+(async () => {
+  try {
+    // Check if the 'public' bucket exists
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    
+    if (bucketError) {
+      console.error('Error checking storage buckets:', bucketError);
+      return;
+    }
+    
+    const publicBucketExists = buckets.some(bucket => bucket.name === 'public');
+    
+    if (!publicBucketExists) {
+      // Create the 'public' bucket with public access
+      const { error: createError } = await supabase.storage.createBucket('public', {
+        public: true,
+        fileSizeLimit: 5 * 1024 * 1024, // 5MB size limit
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+      });
+      
+      if (createError) {
+        console.error('Error creating public bucket:', createError);
+      } else {
+        console.log('Public storage bucket created successfully');
+      }
+    }
+  } catch (error) {
+    console.error('Error initializing storage:', error);
+  }
+})();
