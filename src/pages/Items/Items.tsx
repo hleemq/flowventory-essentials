@@ -1,192 +1,144 @@
 
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Plus, Search, RefreshCw, Trash2 } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { useItems } from "./hooks/useItems";
+import { useWarehouses } from "./hooks/useWarehouses";
+import { Item } from "./types";
+import { translations } from "./translations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-
+import { Plus, Trash } from "lucide-react";
 import ItemsTable from "./components/ItemsTable";
 import AddItemDialog from "./components/AddItemDialog";
 import EditItemDialog from "./components/EditItemDialog";
 import DeleteItemDialog from "./components/DeleteItemDialog";
-import { translations } from "./translations";
-import { useItems } from "./hooks/useItems";
-import { useWarehouses } from "./hooks/useWarehouses";
-import { Item } from "./types";
+import { useNavigate } from "react-router-dom";
 
 const Items = () => {
   const { language } = useLanguage();
   const t = translations[language];
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
-  const { 
-    items, 
-    isLoading, 
-    fetchItems, 
-    handleAddItem, 
-    handleUpdateItem, 
-    handleDeleteItem 
+  const {
+    items,
+    isLoading,
+    fetchItems,
+    handleAddItem,
+    handleUpdateItem,
+    handleDeleteItem,
+    imagePreview,
+    setImagePreview,
+    imageFile,
+    setImageFile,
+    formErrors,
+    setFormErrors,
   } = useItems();
 
   const { warehouses, fetchWarehouses } = useWarehouses();
 
   useEffect(() => {
-    fetchWarehouses();
     fetchItems();
-
-    // Subscribe to realtime updates for warehouses
-    const warehouseChannel = supabase
-      .channel('warehouse-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'warehouses'
-        },
-        (payload) => {
-          console.log('Warehouse update received:', payload);
-          fetchWarehouses();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to realtime updates for items
-    const itemsChannel = supabase
-      .channel('items-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'items'
-        },
-        (payload) => {
-          console.log('Item update received:', payload);
-          fetchItems();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(warehouseChannel);
-      supabase.removeChannel(itemsChannel);
-    };
+    fetchWarehouses();
   }, []);
-
-  const handleOpenEditDialog = async (item: Item) => {
-    setSelectedItem(item);
-    
-    try {
-      // Fetch the complete item data from Supabase
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .eq('id', item.id)
-        .single();
-      
-      if (error) throw error;
-      
-      setIsEditDialogOpen(true);
-    } catch (error) {
-      console.error('Error fetching item details:', error);
-      toast.error("Failed to fetch item details");
-    }
-  };
-
-  const openDeleteDialog = (item: Item) => {
-    setSelectedItem(item);
-    setIsDeleteDialogOpen(true);
-  };
 
   const filteredItems = items.filter(
     (item) =>
-      item.productName
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      item.stockCode
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase())
+      item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.stockCode.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const handleEditItem = (item: Item) => {
+    setSelectedItem(item);
+    setEditDialogOpen(true);
+  };
+
+  const handleOpenDeleteDialog = (item: Item) => {
+    setSelectedItem(item);
+    setDeleteDialogOpen(true);
+  };
+
   return (
-    <div className="container py-8 animate-in" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="flex justify-between items-center mb-8">
+    <div className="container py-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-4xl font-bold">{t.title}</h1>
-          <p className="text-muted-foreground mt-2">{t.description}</p>
+          <h1 className="text-3xl font-bold">{t.title}</h1>
+          <p className="text-muted-foreground">{t.description}</p>
         </div>
-        <AddItemDialog 
-          isOpen={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          warehouses={warehouses}
-          onAddItem={handleAddItem}
-          translations={t}
+        <div className="flex gap-2">
+          <Button
+            variant="default"
+            onClick={() => navigate("/recycle-bin")}
+            className="gap-2"
+          >
+            <Trash className="h-4 w-4" />
+            {t.recycleBin}
+          </Button>
+          <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            {t.addItem}
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <Input
+          placeholder={t.search}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm"
         />
       </div>
 
-      <Card className="p-6">
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-10"
-            placeholder={t.search}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+      <ItemsTable
+        items={filteredItems}
+        isLoading={isLoading}
+        onEdit={handleEditItem}
+        onDelete={handleOpenDeleteDialog}
+        translations={t}
+      />
+
+      <AddItemDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        warehouses={warehouses}
+        onSubmit={handleAddItem}
+        imagePreview={imagePreview}
+        setImagePreview={setImagePreview}
+        imageFile={imageFile}
+        setImageFile={setImageFile}
+        formErrors={formErrors}
+        translations={t}
+      />
+
+      {selectedItem && (
+        <>
+          <EditItemDialog
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            item={selectedItem}
+            warehouses={warehouses}
+            onSubmit={handleUpdateItem}
+            imagePreview={imagePreview}
+            setImagePreview={setImagePreview}
+            imageFile={imageFile}
+            setImageFile={setImageFile}
+            formErrors={formErrors}
+            translations={t}
           />
-        </div>
 
-        <ItemsTable 
-          items={filteredItems} 
-          isLoading={isLoading} 
-          onEdit={handleOpenEditDialog} 
-          onDelete={openDeleteDialog}
-          translations={t}
-        />
-        
-        {/* Recycle bin button (fixed at the bottom right) */}
-        <div className="fixed bottom-8 right-8">
-          <Button 
-            variant="outline" 
-            className="rounded-full w-12 h-12 p-0 shadow-md"
-            onClick={() => navigate('/recycle-bin')}
-            title={t.viewRecycleBin}
-          >
-            <Trash2 className="h-5 w-5" />
-          </Button>
-        </div>
-      </Card>
-
-      {/* Edit Item Dialog */}
-      {selectedItem && (
-        <EditItemDialog
-          isOpen={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          item={selectedItem}
-          warehouses={warehouses}
-          onUpdateItem={handleUpdateItem}
-          translations={t}
-        />
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      {selectedItem && (
-        <DeleteItemDialog
-          isOpen={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-          item={selectedItem}
-          onDeleteItem={handleDeleteItem}
-          translations={t}
-        />
+          <DeleteItemDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            item={selectedItem}
+            onConfirm={handleDeleteItem}
+            translations={t}
+          />
+        </>
       )}
     </div>
   );
