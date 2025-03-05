@@ -1,23 +1,14 @@
 
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus, Search, Trash2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ItemsTable from "@/components/items/ItemsTable";
-import ItemForm from "@/components/items/ItemForm";
-import DeleteConfirmDialog from "@/components/items/DeleteConfirmDialog";
+import ItemsHeader from "@/components/items/ItemsHeader";
+import ItemsSearch from "@/components/items/ItemsSearch";
+import TrashButton from "@/components/items/TrashButton";
+import ItemDialogs from "@/components/items/ItemDialogs";
 import { useItems } from "@/hooks/useItems";
 
 const translations = {
@@ -49,6 +40,7 @@ const translations = {
     edit: "Edit",
     delete: "Delete",
     confirmDelete: "Are you sure you want to delete this item?",
+    deleteItemDescription: "This will move the item \"{itemName}\" to the trash bin. You can restore it from there if needed within 30 days.",
     confirm: "Yes, delete",
     viewTrash: "View Deleted Items",
     imageUploadError: "Image must be a JPEG, PNG, or WebP file under 5MB",
@@ -84,6 +76,7 @@ const translations = {
     edit: "Modifier",
     delete: "Supprimer",
     confirmDelete: "Êtes-vous sûr de vouloir supprimer cet article ?",
+    deleteItemDescription: "Cela déplacera l'article \"{itemName}\" vers la corbeille. Vous pourrez le restaurer à partir de là si nécessaire dans les 30 jours.",
     confirm: "Oui, supprimer",
     viewTrash: "Voir les articles supprimés",
     imageUploadError: "L'image doit être un fichier JPEG, PNG ou WebP de moins de 5 Mo",
@@ -119,6 +112,7 @@ const translations = {
     edit: "تعديل",
     delete: "حذف",
     confirmDelete: "هل أنت متأكد من حذف هذا العنصر؟",
+    deleteItemDescription: "سيؤدي هذا إلى نقل العنصر \"{itemName}\" إلى سلة المهملات. يمكنك استعادته من هناك إذا لزم الأمر في غضون 30 يومًا.",
     confirm: "نعم، احذف",
     viewTrash: "عرض العناصر المحذوفة",
     imageUploadError: "يجب أن تكون الصورة بتنسيق JPEG أو PNG أو WebP وأقل من 5 ميغابايت",
@@ -147,7 +141,6 @@ type DialogMode = 'add' | 'edit' | 'delete' | null;
 
 const Items = () => {
   const { language } = useLanguage();
-  const navigate = useNavigate();
   const t = translations[language];
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
@@ -391,27 +384,20 @@ const Items = () => {
 
   return (
     <div className="container py-8 animate-in" dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-4xl font-bold">{t.title}</h1>
-          <p className="text-muted-foreground mt-2">{t.description}</p>
-        </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t.addItem}
-        </Button>
-      </div>
+      <ItemsHeader 
+        title={t.title}
+        description={t.description}
+        addButtonLabel={t.addItem}
+        onAddClick={openAddDialog}
+        language={language}
+      />
 
       <Card className="p-6">
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-10"
-            placeholder={t.search}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        <ItemsSearch 
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          placeholder={t.search}
+        />
 
         {isLoading ? (
           <div className="flex justify-center py-8">
@@ -428,72 +414,21 @@ const Items = () => {
         )}
       </Card>
 
-      <div className="fixed bottom-6 right-6">
-        <Button 
-          onClick={() => navigate('/corbeille')} 
-          variant="outline" 
-          size="icon" 
-          className="h-14 w-14 rounded-full shadow-lg bg-background"
-          title={t.viewTrash}
-        >
-          <Trash2 className="h-6 w-6" />
-        </Button>
-      </div>
+      <TrashButton title={t.viewTrash} />
 
-      {/* Add Item Dialog */}
-      <Dialog open={dialogMode === 'add'} onOpenChange={(open) => !open && setDialogMode(null)}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t.addNewStockItem}</DialogTitle>
-            <DialogDescription>
-              Fill in the item details below to add it to your inventory.
-            </DialogDescription>
-          </DialogHeader>
-          <ItemForm
-            item={newItem}
-            formErrors={formErrors}
-            warehouses={warehouses}
-            onItemChange={setNewItem}
-            onSubmit={handleAddItem}
-            onCancel={() => setDialogMode(null)}
-            imagePreview={imagePreview}
-            setImagePreview={setImagePreview}
-            translations={t}
-            submitLabel={t.addItem}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Item Dialog */}
-      <Dialog open={dialogMode === 'edit'} onOpenChange={(open) => !open && setDialogMode(null)}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Item</DialogTitle>
-            <DialogDescription>
-              Update the item details below.
-            </DialogDescription>
-          </DialogHeader>
-          <ItemForm
-            item={newItem}
-            formErrors={formErrors}
-            warehouses={warehouses}
-            onItemChange={setNewItem}
-            onSubmit={handleEditItem}
-            onCancel={() => setDialogMode(null)}
-            imagePreview={imagePreview}
-            setImagePreview={setImagePreview}
-            translations={t}
-            submitLabel={t.edit}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <DeleteConfirmDialog
-        open={dialogMode === 'delete'}
-        onOpenChange={(open) => !open && setDialogMode(null)}
-        onConfirm={handleDeleteItem}
-        itemName={selectedItem?.productName || ''}
+      <ItemDialogs
+        dialogMode={dialogMode}
+        setDialogMode={setDialogMode}
+        newItem={newItem}
+        setNewItem={setNewItem}
+        selectedItem={selectedItem}
+        formErrors={formErrors}
+        warehouses={warehouses}
+        imagePreview={imagePreview}
+        setImagePreview={setImagePreview}
+        onAddItem={handleAddItem}
+        onEditItem={handleEditItem}
+        onDeleteItem={handleDeleteItem}
         translations={t}
       />
     </div>

@@ -44,7 +44,12 @@
 - Added date localization for better international user experience
 - Added refresh button to refresh the current page
 - Implemented low stock notification system
-- Refactored Items.tsx into smaller, more maintainable components
+- Refactored Items.tsx into smaller, more maintainable components:
+  - ItemsHeader.tsx - handles the page header with title and add button
+  - ItemsSearch.tsx - provides search functionality
+  - TrashButton.tsx - floating button to access trash
+  - ItemDialogs.tsx - manages all dialog windows
+  - Enhanced DeleteConfirmDialog.tsx with better translation support
 
 ## 7. Refresh and Notification System
 - Added refresh button at the top of the application

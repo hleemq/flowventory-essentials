@@ -30,8 +30,9 @@ const DeleteConfirmDialog = ({
         </DialogHeader>
         <div className="py-4">
           <p>
-            This will move the item "{itemName}" to the trash bin. 
-            You can restore it from there if needed within 30 days.
+            {t.deleteItemDescription?.replace('{itemName}', itemName) || 
+            `This will move the item "${itemName}" to the trash bin. 
+            You can restore it from there if needed within 30 days.`}
           </p>
         </div>
         <div className="flex justify-end gap-4">
