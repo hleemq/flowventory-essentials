@@ -1,4 +1,5 @@
 
+
 # Implementation Steps and Updates
 
 ## 1. Database Configuration
@@ -6,6 +7,7 @@
 - Created database function `clean_deleted_items()` to automatically remove items older than 30 days from the trash
 - Setup cron job to run the cleanup function daily
 - Created policy to allow users to view their soft-deleted items
+- Added `currency` column to items table to support multi-currency functionality
 
 ## 2. Image Upload Feature
 - Enhanced the item forms (add/edit) with drag-and-drop image upload
@@ -20,6 +22,7 @@
 - Added permanent delete capability from the trash
 - Implemented 30-day automatic cleanup for deleted items
 - Added floating button with trash icon for accessing the Corbeille page
+- Added return button to navigate back to the Items page
 
 ## 4. Edit and Delete Actions
 - Enhanced item management with proper edit and delete workflows
@@ -43,3 +46,4 @@
 - Add inventory movement tracking
 - Enhance reporting capabilities
 - Implement user permissions for item management
+

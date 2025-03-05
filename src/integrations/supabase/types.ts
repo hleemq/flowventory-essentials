@@ -107,6 +107,7 @@ export type Database = {
           bought_price: number
           boxes: number
           created_at: string | null
+          currency: string
           deleted_at: string | null
           id: string
           image: string | null
@@ -125,6 +126,7 @@ export type Database = {
           bought_price: number
           boxes: number
           created_at?: string | null
+          currency?: string
           deleted_at?: string | null
           id?: string
           image?: string | null
@@ -143,6 +145,7 @@ export type Database = {
           bought_price?: number
           boxes?: number
           created_at?: string | null
+          currency?: string
           deleted_at?: string | null
           id?: string
           image?: string | null
@@ -682,22 +685,40 @@ export type Database = {
       }
     }
     Functions: {
-      add_item_without_audit: {
-        Args: {
-          p_sku: string
-          p_name: string
-          p_boxes: number
-          p_units_per_box: number
-          p_bought_price: number
-          p_shipment_fees: number
-          p_selling_price: number
-          p_warehouse_id: string
-          p_quantity: number
-          p_image: string
-          p_low_stock_threshold: number
-        }
-        Returns: Json
-      }
+      add_item_without_audit:
+        | {
+            Args: {
+              p_sku: string
+              p_name: string
+              p_boxes: number
+              p_units_per_box: number
+              p_bought_price: number
+              p_shipment_fees: number
+              p_selling_price: number
+              p_warehouse_id: string
+              p_quantity: number
+              p_image: string
+              p_low_stock_threshold: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_sku: string
+              p_name: string
+              p_boxes: number
+              p_units_per_box: number
+              p_bought_price: number
+              p_shipment_fees: number
+              p_selling_price: number
+              p_warehouse_id: string
+              p_quantity: number
+              p_image: string
+              p_low_stock_threshold: number
+              p_currency: string
+            }
+            Returns: Json
+          }
       check_schema_access: {
         Args: {
           schema_name: string

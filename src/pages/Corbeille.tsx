@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search, RotateCcw, Trash } from "lucide-react";
+import { Search, RotateCcw, Trash, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -37,7 +38,8 @@ const translations = {
     confirmDelete: "Are you sure you want to permanently delete this item? This action cannot be undone.",
     yes: "Yes, delete",
     no: "No, cancel",
-    daysLeft: "{count} days left"
+    daysLeft: "{count} days left",
+    returnToItems: "Return to Items"
   },
   fr: {
     title: "Corbeille",
@@ -56,7 +58,8 @@ const translations = {
     confirmDelete: "Êtes-vous sûr de vouloir supprimer définitivement cet article ? Cette action ne peut pas être annulée.",
     yes: "Oui, supprimer",
     no: "Non, annuler",
-    daysLeft: "{count} jours restants"
+    daysLeft: "{count} jours restants",
+    returnToItems: "Retour aux Articles"
   },
   ar: {
     title: "سلة المحذوفات",
@@ -75,7 +78,8 @@ const translations = {
     confirmDelete: "هل أنت متأكد أنك تريد حذف هذا العنصر نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
     yes: "نعم، احذف",
     no: "لا، إلغاء",
-    daysLeft: "متبقي {count} أيام"
+    daysLeft: "متبقي {count} أيام",
+    returnToItems: "العودة إلى العناصر"
   }
 };
 
@@ -88,6 +92,7 @@ interface Item {
 }
 
 const Corbeille = () => {
+  const navigate = useNavigate();
   const { language } = useLanguage();
   const t = translations[language];
   const [searchQuery, setSearchQuery] = useState("");
@@ -201,6 +206,14 @@ const Corbeille = () => {
           <h1 className="text-4xl font-bold">{t.title}</h1>
           <p className="text-muted-foreground mt-2">{t.description}</p>
         </div>
+        <Button 
+          variant="outline" 
+          onClick={() => navigate('/inventory/items')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {t.returnToItems}
+        </Button>
       </div>
 
       <Card className="p-6">
