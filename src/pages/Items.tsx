@@ -1,43 +1,24 @@
-import { useState, useEffect, useRef } from "react";
+
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Trash, Edit, MoreHorizontal, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { supabase, supportedCurrencies } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ItemsTable from "@/components/items/ItemsTable";
+import ItemForm from "@/components/items/ItemForm";
+import DeleteConfirmDialog from "@/components/items/DeleteConfirmDialog";
+import { useItems } from "@/hooks/useItems";
 
 const translations = {
   en: {
@@ -162,31 +143,6 @@ interface Item {
   currency: string;
 }
 
-interface Warehouse {
-  id: string;
-  name: string;
-  location: string;
-  items_count: number;
-}
-
-interface NewItem {
-  image: string | File;
-  stockCode: string;
-  productName: string;
-  boxes: number;
-  unitsPerBox: number;
-  boughtPrice: number;
-  shipmentFees: number;
-  sellingPrice: number;
-  warehouse: string;
-  lowStockThreshold: number;
-  currency: string;
-}
-
-interface EditingItem extends NewItem {
-  id: string;
-}
-
 type DialogMode = 'add' | 'edit' | 'delete' | null;
 
 const Items = () => {
@@ -194,8 +150,6 @@ const Items = () => {
   const navigate = useNavigate();
   const t = translations[language];
   const [searchQuery, setSearchQuery] = useState("");
-  const [items, setItems] = useState<Item[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [formErrors, setFormErrors] = useState({
@@ -205,7 +159,7 @@ const Items = () => {
     image: false,
   });
 
-  const [newItem, setNewItem] = useState<NewItem>({
+  const [newItem, setNewItem] = useState({
     image: "",
     stockCode: "",
     productName: "",
@@ -219,201 +173,9 @@ const Items = () => {
     currency: "MAD",
   });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
-  const [isDragging, setIsDragging] = useState(false);
-
-  useEffect(() => {
-    fetchWarehouses();
-    fetchItems();
-
-    const warehouseChannel = supabase
-      .channel('warehouse-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'warehouses'
-        },
-        (payload) => {
-          console.log('Warehouse update received:', payload);
-          fetchWarehouses();
-        }
-      )
-      .subscribe();
-
-    const itemsChannel = supabase
-      .channel('items-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'items'
-        },
-        (payload) => {
-          console.log('Item update received:', payload);
-          fetchItems();
-        }
-      )
-      .subscribe();
-
-    const settingsChannel = supabase
-      .channel('settings-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'settings'
-        },
-        (payload) => {
-          console.log('Settings update received:', payload);
-          fetchItems();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(warehouseChannel);
-      supabase.removeChannel(itemsChannel);
-      supabase.removeChannel(settingsChannel);
-    };
-  }, []);
-
-  const fetchWarehouses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*');
-      
-      if (error) throw error;
-      console.log("Fetched warehouses:", data);
-      setWarehouses(data || []);
-    } catch (error) {
-      console.error('Error fetching warehouses:', error);
-      toast.error("Failed to fetch warehouses");
-    }
-  };
-
-  const fetchItems = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('items')
-        .select(`
-          id,
-          image,
-          sku,
-          name,
-          boxes,
-          units_per_box,
-          bought_price,
-          shipment_fees,
-          selling_price,
-          quantity,
-          warehouse_id,
-          currency,
-          warehouses:warehouses!items_warehouse_id_fkey (
-            name,
-            location
-          )
-        `)
-        .is('deleted_at', null); // Only fetch non-deleted items
-      
-      if (error) throw error;
-      
-      console.log("Fetched items:", data);
-      
-      const supabaseData = data as any[];
-      
-      const formattedItems = (supabaseData || []).map((item) => {
-        let warehouseName = '';
-        
-        if (item.warehouses) {
-          warehouseName = item.warehouses.name || '';
-        }
-        
-        return {
-          id: item.id,
-          image: item.image || "/placeholder.svg",
-          stockCode: item.sku,
-          productName: item.name,
-          boxes: item.boxes,
-          unitsPerBox: item.units_per_box,
-          initialPrice: item.bought_price + item.shipment_fees,
-          sellingPrice: item.selling_price,
-          location: warehouseName,
-          stockStatus: item.quantity > 0 ? "In Stock" : "Out of Stock",
-          unitsLeft: item.quantity,
-          currency: item.currency || "MAD",
-        };
-      });
-
-      setItems(formattedItems);
-    } catch (error) {
-      console.error('Error fetching items:', error);
-      toast.error("Failed to fetch items");
-    }
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      validateAndSetImage(file);
-    }
-  };
-
-  const validateAndSetImage = (file: File) => {
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      toast.error(t.imageUploadError);
-      setFormErrors({...formErrors, image: true});
-      return;
-    }
-    
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error(t.imageUploadError);
-      setFormErrors({...formErrors, image: true});
-      return;
-    }
-
-    setFormErrors({...formErrors, image: false});
-    
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-    
-    if (dialogMode === 'add') {
-      setNewItem({...newItem, image: file});
-    } else if (dialogMode === 'edit' && selectedItem) {
-      setNewItem({...newItem, image: file});
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      validateAndSetImage(e.dataTransfer.files[0]);
-    }
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
+  
+  const { items, warehouses, fetchItems, uploadImage, isLoading } = useItems();
 
   const validateForm = () => {
     const errors = {
@@ -425,26 +187,6 @@ const Items = () => {
     
     setFormErrors(errors);
     return !Object.values(errors).some(Boolean);
-  };
-
-  const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-    const filePath = `items/${fileName}`;
-    
-    const { data, error } = await supabase.storage
-      .from('public')
-      .upload(filePath, file);
-    
-    if (error) {
-      throw error;
-    }
-    
-    const { data: urlData } = supabase.storage
-      .from('public')
-      .getPublicUrl(filePath);
-    
-    return urlData.publicUrl;
   };
 
   const handleAddItem = async () => {
@@ -477,7 +219,8 @@ const Items = () => {
       if (error) {
         console.log("Falling back to direct insert due to RPC error:", error);
         
-        const { data: itemData, error: itemError } = await supabase
+        // Direct insert if RPC fails
+        const { error: itemError } = await supabase
           .from('items')
           .insert([
             {
@@ -494,23 +237,10 @@ const Items = () => {
               low_stock_threshold: newItem.lowStockThreshold,
               currency: newItem.currency
             }
-          ])
-          .select();
+          ]);
 
         if (itemError) throw itemError;
-        console.log("Item added successfully via direct insert:", itemData);
-      } else {
-        console.log("Item added successfully via RPC:", data);
       }
-
-      const { error: warehouseError } = await supabase
-        .from('warehouses')
-        .update({ 
-          items_count: warehouses.find(w => w.id === newItem.warehouse)?.items_count + 1 || 1
-        })
-        .eq('id', newItem.warehouse);
-
-      if (warehouseError) throw warehouseError;
 
       setDialogMode(null);
       resetForm();
@@ -519,7 +249,7 @@ const Items = () => {
       fetchItems();
     } catch (error) {
       console.error('Error adding item:', error);
-      toast.error("Failed to add item: " + (error as Error).message);
+      toast.error(`Failed to add item: ${(error as Error).message}`);
     }
   };
 
@@ -562,7 +292,7 @@ const Items = () => {
       fetchItems();
     } catch (error) {
       console.error('Error updating item:', error);
-      toast.error("Failed to update item: " + (error as Error).message);
+      toast.error(`Failed to update item: ${(error as Error).message}`);
     }
   };
 
@@ -586,7 +316,7 @@ const Items = () => {
       fetchItems();
     } catch (error) {
       console.error('Error deleting item:', error);
-      toast.error("Failed to delete item: " + (error as Error).message);
+      toast.error(`Failed to delete item: ${(error as Error).message}`);
     }
   };
 
@@ -626,7 +356,7 @@ const Items = () => {
       .eq('id', item.id)
       .single();
 
-    if (error) {
+    if (!data || error) {
       console.error('Error fetching item for edit:', error);
       toast.error("Failed to load item details");
       return;
@@ -637,7 +367,6 @@ const Items = () => {
         setSelectedItem(item);
         setImagePreview(originalItem.image || "/placeholder.svg");
         setNewItem({
-          id: originalItem.id,
           image: originalItem.image || "",
           stockCode: originalItem.sku,
           productName: originalItem.name,
@@ -658,11 +387,6 @@ const Items = () => {
   const openDeleteDialog = (item: Item) => {
     setSelectedItem(item);
     setDialogMode('delete');
-  };
-
-  const getCurrencySymbol = (currencyCode: string) => {
-    const currency = supportedCurrencies[currencyCode];
-    return currency ? currency.symbol : currencyCode;
   };
 
   return (
@@ -689,92 +413,19 @@ const Items = () => {
           />
         </div>
 
-        <div className="rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t.image}</TableHead>
-                <TableHead>{t.stockCode}</TableHead>
-                <TableHead>{t.productName}</TableHead>
-                <TableHead>{t.boxes}</TableHead>
-                <TableHead>{t.unitsPerBox}</TableHead>
-                <TableHead>{t.initialPrice}</TableHead>
-                <TableHead>{t.sellingPrice}</TableHead>
-                <TableHead>{t.location}</TableHead>
-                <TableHead>{t.stockStatus}</TableHead>
-                <TableHead>{t.unitsLeft}</TableHead>
-                <TableHead>{t.actions}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
-                    No items found. Click 'Add Item' to add your first inventory item.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items
-                  .filter(
-                    (item) =>
-                      item.productName
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase()) ||
-                      item.stockCode
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                  )
-                  .map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <img
-                          src={item.image}
-                          alt={item.productName}
-                          className="w-10 h-10 object-cover rounded"
-                        />
-                      </TableCell>
-                      <TableCell>{item.stockCode}</TableCell>
-                      <TableCell>{item.productName}</TableCell>
-                      <TableCell>{item.boxes}</TableCell>
-                      <TableCell>{item.unitsPerBox}</TableCell>
-                      <TableCell>{item.initialPrice} {getCurrencySymbol(item.currency)}</TableCell>
-                      <TableCell>{item.sellingPrice} {getCurrencySymbol(item.currency)}</TableCell>
-                      <TableCell>{item.location}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          item.stockStatus === "In Stock" 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-red-100 text-red-800"
-                        }`}>
-                          {item.stockStatus}
-                        </span>
-                      </TableCell>
-                      <TableCell>{item.unitsLeft}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(item)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              {t.edit}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openDeleteDialog(item)}>
-                              <Trash className="h-4 w-4 mr-2" />
-                              {t.delete}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-pulse text-muted-foreground">Loading items...</div>
+          </div>
+        ) : (
+          <ItemsTable
+            items={items}
+            searchQuery={searchQuery}
+            onEdit={openEditDialog}
+            onDelete={openDeleteDialog}
+            translations={t}
+          />
+        )}
       </Card>
 
       <div className="fixed bottom-6 right-6">
@@ -789,6 +440,7 @@ const Items = () => {
         </Button>
       </div>
 
+      {/* Add Item Dialog */}
       <Dialog open={dialogMode === 'add'} onOpenChange={(open) => !open && setDialogMode(null)}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -797,208 +449,22 @@ const Items = () => {
               Fill in the item details below to add it to your inventory.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col items-center gap-4">
-              <div
-                className={`w-full h-40 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                  isDragging 
-                    ? 'border-primary bg-primary/10' 
-                    : formErrors.image 
-                      ? 'border-red-500 bg-red-50' 
-                      : 'border-gray-300 hover:border-primary hover:bg-primary/5'
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={triggerFileInput}
-              >
-                {imagePreview ? (
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    className="h-full w-auto max-w-full object-contain"
-                  />
-                ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-1">{t.dragDrop}</p>
-                    <p className="text-xs text-muted-foreground">{t.maxSize}</p>
-                  </>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleImageChange}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="stockCode" className="flex items-center gap-1">
-                  {t.stockCode}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="stockCode"
-                  value={newItem.stockCode}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, stockCode: e.target.value })
-                  }
-                  className={formErrors.stockCode ? "border-red-500" : ""}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="productName" className="flex items-center gap-1">
-                  {t.productName}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="productName"
-                  value={newItem.productName}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, productName: e.target.value })
-                  }
-                  className={formErrors.productName ? "border-red-500" : ""}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="warehouse" className="flex items-center gap-1">
-                {t.warehouse}
-                <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={newItem.warehouse}
-                onValueChange={(value) =>
-                  setNewItem({ ...newItem, warehouse: value })
-                }
-              >
-                <SelectTrigger
-                  className={formErrors.warehouse ? "border-red-500" : ""}
-                >
-                  <SelectValue placeholder={t.selectWarehouse} />
-                </SelectTrigger>
-                <SelectContent>
-                  {warehouses.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.location})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="boxes">{t.boxes}</Label>
-                <Input
-                  id="boxes"
-                  type="number"
-                  min="0"
-                  value={newItem.boxes}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, boxes: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="unitsPerBox">{t.unitsPerBox}</Label>
-                <Input
-                  id="unitsPerBox"
-                  type="number"
-                  min="0"
-                  value={newItem.unitsPerBox}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, unitsPerBox: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="boughtPrice">{t.boughtPrice}</Label>
-                <Input
-                  id="boughtPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newItem.boughtPrice}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, boughtPrice: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="shipmentFees">{t.shipmentFees}</Label>
-                <Input
-                  id="shipmentFees"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newItem.shipmentFees}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, shipmentFees: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="sellingPrice">{t.sellingPrice}</Label>
-                <Input
-                  id="sellingPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newItem.sellingPrice}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, sellingPrice: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="lowStockThreshold">{t.lowStockThreshold}</Label>
-                <Input
-                  id="lowStockThreshold"
-                  type="number"
-                  min="0"
-                  value={newItem.lowStockThreshold}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, lowStockThreshold: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="currency">{t.currency}</Label>
-              <Select
-                value={newItem.currency}
-                onValueChange={(value) =>
-                  setNewItem({ ...newItem, currency: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={t.selectCurrency} />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(supportedCurrencies).map(([code, currency]) => (
-                    <SelectItem key={code} value={code}>
-                      {currency.symbol} - {currency.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={() => setDialogMode(null)}>
-              {t.cancel}
-            </Button>
-            <Button onClick={handleAddItem}>{t.addItem}</Button>
-          </div>
+          <ItemForm
+            item={newItem}
+            formErrors={formErrors}
+            warehouses={warehouses}
+            onItemChange={setNewItem}
+            onSubmit={handleAddItem}
+            onCancel={() => setDialogMode(null)}
+            imagePreview={imagePreview}
+            setImagePreview={setImagePreview}
+            translations={t}
+            submitLabel={t.addItem}
+          />
         </DialogContent>
       </Dialog>
 
+      {/* Edit Item Dialog */}
       <Dialog open={dialogMode === 'edit'} onOpenChange={(open) => !open && setDialogMode(null)}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -1007,232 +473,29 @@ const Items = () => {
               Update the item details below.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="flex flex-col items-center gap-4">
-              <div
-                className={`w-full h-40 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                  isDragging 
-                    ? 'border-primary bg-primary/10' 
-                    : formErrors.image 
-                      ? 'border-red-500 bg-red-50' 
-                      : 'border-gray-300 hover:border-primary hover:bg-primary/5'
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={triggerFileInput}
-              >
-                {imagePreview ? (
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    className="h-full w-auto max-w-full object-contain"
-                  />
-                ) : (
-                  <>
-                    <p className="text-sm text-muted-foreground mb-1">{t.dragDrop}</p>
-                    <p className="text-xs text-muted-foreground">{t.maxSize}</p>
-                  </>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleImageChange}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="editStockCode" className="flex items-center gap-1">
-                  {t.stockCode}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="editStockCode"
-                  value={newItem.stockCode}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, stockCode: e.target.value })
-                  }
-                  className={formErrors.stockCode ? "border-red-500" : ""}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="editProductName" className="flex items-center gap-1">
-                  {t.productName}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="editProductName"
-                  value={newItem.productName}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, productName: e.target.value })
-                  }
-                  className={formErrors.productName ? "border-red-500" : ""}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="editWarehouse" className="flex items-center gap-1">
-                {t.warehouse}
-                <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={newItem.warehouse}
-                onValueChange={(value) =>
-                  setNewItem({ ...newItem, warehouse: value })
-                }
-              >
-                <SelectTrigger
-                  className={formErrors.warehouse ? "border-red-500" : ""}
-                  id="editWarehouse"
-                >
-                  <SelectValue placeholder={t.selectWarehouse} />
-                </SelectTrigger>
-                <SelectContent>
-                  {warehouses.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.location})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="editBoxes">{t.boxes}</Label>
-                <Input
-                  id="editBoxes"
-                  type="number"
-                  min="0"
-                  value={newItem.boxes}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, boxes: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="editUnitsPerBox">{t.unitsPerBox}</Label>
-                <Input
-                  id="editUnitsPerBox"
-                  type="number"
-                  min="0"
-                  value={newItem.unitsPerBox}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, unitsPerBox: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="editBoughtPrice">{t.boughtPrice}</Label>
-                <Input
-                  id="editBoughtPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newItem.boughtPrice}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, boughtPrice: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="editShipmentFees">{t.shipmentFees}</Label>
-                <Input
-                  id="editShipmentFees"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newItem.shipmentFees}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, shipmentFees: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="editSellingPrice">{t.sellingPrice}</Label>
-                <Input
-                  id="editSellingPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newItem.sellingPrice}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, sellingPrice: Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="editLowStockThreshold">{t.lowStockThreshold}</Label>
-                <Input
-                  id="editLowStockThreshold"
-                  type="number"
-                  min="0"
-                  value={newItem.lowStockThreshold}
-                  onChange={(e) =>
-                    setNewItem({ ...newItem, lowStockThreshold: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="editCurrency">{t.currency}</Label>
-              <Select
-                value={newItem.currency}
-                onValueChange={(value) =>
-                  setNewItem({ ...newItem, currency: value })
-                }
-              >
-                <SelectTrigger id="editCurrency">
-                  <SelectValue placeholder={t.selectCurrency} />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(supportedCurrencies).map(([code, currency]) => (
-                    <SelectItem key={code} value={code}>
-                      {currency.symbol} - {currency.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={() => setDialogMode(null)}>
-              {t.cancel}
-            </Button>
-            <Button onClick={handleEditItem}>{t.edit}</Button>
-          </div>
+          <ItemForm
+            item={newItem}
+            formErrors={formErrors}
+            warehouses={warehouses}
+            onItemChange={setNewItem}
+            onSubmit={handleEditItem}
+            onCancel={() => setDialogMode(null)}
+            imagePreview={imagePreview}
+            setImagePreview={setImagePreview}
+            translations={t}
+            submitLabel={t.edit}
+          />
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogMode === 'delete'} onOpenChange={(open) => !open && setDialogMode(null)}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t.confirmDelete}</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            {selectedItem && (
-              <p>
-                This will move the item "{selectedItem.productName}" to the trash bin. 
-                You can restore it from there if needed within 30 days.
-              </p>
-            )}
-          </div>
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={() => setDialogMode(null)}>
-              {t.cancel}
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteItem}>
-              {t.confirm}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={dialogMode === 'delete'}
+        onOpenChange={(open) => !open && setDialogMode(null)}
+        onConfirm={handleDeleteItem}
+        itemName={selectedItem?.productName || ''}
+        translations={t}
+      />
     </div>
   );
 };

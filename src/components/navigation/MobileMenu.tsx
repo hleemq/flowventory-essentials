@@ -1,3 +1,4 @@
+
 import {
   Sheet,
   SheetContent,
@@ -6,7 +7,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, Languages, LogOutIcon } from "lucide-react";
+import { Menu, Languages, LogOutIcon, RefreshCw } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import NavItems from "./NavItems";
 import Notifications from "../Notifications";
 
@@ -24,6 +26,7 @@ type MobileMenuProps = {
     menu: string;
     switchLanguage: string;
     logout: string;
+    refresh: string;
   };
   onLanguageSwitch: () => void;
   onLogout: () => void;
@@ -38,6 +41,19 @@ const MobileMenu = ({
   onLogout,
   currentLanguage,
 }: MobileMenuProps) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const refreshCurrentPage = () => {
+    // Force a re-render of the current page without a full page reload
+    const currentPath = location.pathname;
+    navigate('/', { replace: true });
+    setTimeout(() => {
+      navigate(currentPath, { replace: true });
+    }, 10);
+    onOpenChange(false);
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
@@ -57,6 +73,14 @@ const MobileMenu = ({
           />
           <div className="mt-auto pt-4 border-t">
             <div className="flex items-center justify-between mb-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={refreshCurrentPage}
+                title={t.refresh}
+              >
+                <RefreshCw className="h-5 w-5 transition-transform hover:rotate-180" />
+              </Button>
               <Notifications />
               <Button
                 variant="ghost"

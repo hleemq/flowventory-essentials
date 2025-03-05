@@ -2,8 +2,9 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "./ui/button";
-import { Languages, BellRing, LogOutIcon } from "lucide-react";
-import { useState } from "react";
+import { Languages, RefreshCw, LogOutIcon } from "lucide-react";
+import { useState, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import NavItems from "./navigation/NavItems";
 import MobileMenu from "./navigation/MobileMenu";
 import Notifications from "./Notifications";
@@ -19,7 +20,8 @@ const translations = {
     settings: "Settings",
     logout: "Logout",
     switchLanguage: "Switch Language",
-    menu: "Menu"
+    menu: "Menu",
+    refresh: "Refresh Page"
   },
   fr: {
     dashboard: "Tableau de bord",
@@ -31,7 +33,8 @@ const translations = {
     settings: "Paramètres",
     logout: "Déconnexion",
     switchLanguage: "Changer de langue",
-    menu: "Menu"
+    menu: "Menu",
+    refresh: "Actualiser la page"
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -43,7 +46,8 @@ const translations = {
     settings: "الإعدادات",
     logout: "تسجيل الخروج",
     switchLanguage: "تغيير اللغة",
-    menu: "القائمة"
+    menu: "القائمة",
+    refresh: "تحديث الصفحة"
   }
 };
 
@@ -52,6 +56,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const { language, setLanguage } = useLanguage();
   const t = translations[language];
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLanguageSwitch = () => {
     const langs: ("en" | "fr" | "ar")[] = ["en", "fr", "ar"];
@@ -59,6 +65,15 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     const nextIndex = (currentIndex + 1) % langs.length;
     setLanguage(langs[nextIndex]);
   };
+
+  const refreshCurrentPage = useCallback(() => {
+    // Force a re-render of the current page without a full page reload
+    const currentPath = location.pathname;
+    navigate('/', { replace: true });
+    setTimeout(() => {
+      navigate(currentPath, { replace: true });
+    }, 10);
+  }, [location.pathname, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,6 +100,15 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           
           {/* Desktop Actions */}
           <div className="hidden md:flex gap-2 items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={refreshCurrentPage}
+              className="relative group"
+              title={t.refresh}
+            >
+              <RefreshCw className="h-5 w-5 transition-transform group-hover:rotate-180" />
+            </Button>
             <Notifications />
             <Button
               variant="ghost"

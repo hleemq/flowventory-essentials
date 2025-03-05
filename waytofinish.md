@@ -42,10 +42,20 @@
 - Added RTL support for Arabic language
 - Enhanced accessibility features
 - Added date localization for better international user experience
+- Added refresh button to refresh the current page
+- Implemented low stock notification system
+- Refactored Items.tsx into smaller, more maintainable components
+
+## 7. Refresh and Notification System
+- Added refresh button at the top of the application
+- Implemented page-specific refresh without full application reload
+- Enhanced notification system with low stock alerts
+- Integrated real-time notifications with toast messages
+- Added read/unread status for notifications
+- Implemented "Mark all as read" functionality
 
 ## Next Steps
 - Implement bulk actions for items (bulk delete, bulk edit)
 - Add inventory movement tracking
 - Enhance reporting capabilities
 - Implement user permissions for item management
-- Refactor Items.tsx into smaller, more maintainable components
