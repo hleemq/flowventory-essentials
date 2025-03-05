@@ -24,20 +24,30 @@ import ImageUpload from "./ImageUpload";
 import { Item, Warehouse, EditingItem } from "../types";
 
 interface EditItemDialogProps {
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
   item: Item;
   warehouses: Warehouse[];
-  onUpdateItem: (item: EditingItem) => Promise<boolean>;
+  onSubmit: (item: EditingItem) => Promise<boolean>;
+  imagePreview: string | null;
+  setImagePreview: (preview: string | null) => void;
+  imageFile: File | null;
+  setImageFile: (file: File | null) => void;
+  formErrors: any;
   translations: any;
 }
 
 const EditItemDialog = ({ 
-  isOpen, 
+  open, 
   onOpenChange, 
   item, 
   warehouses, 
-  onUpdateItem,
+  onSubmit,
+  imagePreview,
+  setImagePreview,
+  imageFile,
+  setImageFile,
+  formErrors,
   translations: t 
 }: EditItemDialogProps) => {
   const [editingItem, setEditingItem] = useState<EditingItem>({
@@ -53,20 +63,13 @@ const EditItemDialog = ({
     warehouse: "",
     lowStockThreshold: 10,
   });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [formErrors, setFormErrors] = useState({
-    stockCode: false,
-    productName: false,
-    warehouse: false,
-  });
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen && item) {
+    if (open && item) {
       fetchItemDetails();
     }
-  }, [isOpen, item]);
+  }, [open, item]);
 
   const fetchItemDetails = async () => {
     setIsLoading(true);
@@ -115,7 +118,7 @@ const EditItemDialog = ({
   };
 
   const handleUpdateItemSubmit = async () => {
-    const success = await onUpdateItem({
+    const success = await onSubmit({
       ...editingItem,
       image: imagePreview || editingItem.image
     });
@@ -126,7 +129,7 @@ const EditItemDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t.editItem}</DialogTitle>

@@ -10,29 +10,29 @@ import {
 import { Item } from "../types";
 
 interface DeleteItemDialogProps {
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
   item: Item;
-  onDeleteItem: (itemId: string) => Promise<boolean>;
+  onConfirm: (itemId: string) => Promise<boolean>;
   translations: any;
 }
 
 const DeleteItemDialog = ({ 
-  isOpen, 
+  open, 
   onOpenChange, 
   item, 
-  onDeleteItem,
+  onConfirm,
   translations: t 
 }: DeleteItemDialogProps) => {
   const handleDelete = async () => {
-    const success = await onDeleteItem(item.id);
+    const success = await onConfirm(item.id);
     if (success) {
       onOpenChange(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t.confirmDelete}</DialogTitle>

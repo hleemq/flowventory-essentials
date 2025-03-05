@@ -5,6 +5,8 @@
 - Fixed App.tsx by adding missing providers (AuthProvider and SidebarProvider)
 - Fixed blank page issue by wrapping the application with the required context providers
 - Ensured proper component hierarchy to enable context usage throughout the application
+- Fixed TypeScript prop type mismatches in dialog components
+- Standardized prop naming across components (using `open` instead of `isOpen`)
 
 ## Multi-language Support
 - Implemented RTL and language support (Arabic, French, English)
@@ -20,6 +22,7 @@
 - Implemented CRUD operations for items
 - Added search functionality
 - Connected to Supabase backend for data persistence
+- Fixed type mismatches between Items.tsx and dialog components
 
 ## UI Improvements
 - Fixed responsive design
@@ -30,3 +33,4 @@
 - Improve warehouse management
 - Enhance reporting capabilities
 - Add data export/import features
+

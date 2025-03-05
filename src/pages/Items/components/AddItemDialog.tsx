@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,18 +24,28 @@ import { NewItem, Warehouse } from "../types";
 import { toast } from "sonner";
 
 interface AddItemDialogProps {
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
   warehouses: Warehouse[];
-  onAddItem: (newItem: NewItem) => Promise<boolean>;
+  onSubmit: (newItem: NewItem) => Promise<boolean>;
+  imagePreview: string | null;
+  setImagePreview: (preview: string | null) => void;
+  imageFile: File | null;
+  setImageFile: (file: File | null) => void;
+  formErrors: any;
   translations: any;
 }
 
 const AddItemDialog = ({ 
-  isOpen, 
+  open, 
   onOpenChange, 
   warehouses, 
-  onAddItem, 
+  onSubmit, 
+  imagePreview,
+  setImagePreview,
+  imageFile,
+  setImageFile,
+  formErrors,
   translations: t 
 }: AddItemDialogProps) => {
   const [newItem, setNewItem] = useState<NewItem>({
@@ -50,13 +59,6 @@ const AddItemDialog = ({
     sellingPrice: 0,
     warehouse: "",
     lowStockThreshold: 10,
-  });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [formErrors, setFormErrors] = useState({
-    stockCode: false,
-    productName: false,
-    warehouse: false,
   });
 
   const resetForm = () => {
@@ -74,11 +76,6 @@ const AddItemDialog = ({
     });
     setImagePreview(null);
     setImageFile(null);
-    setFormErrors({
-      stockCode: false,
-      productName: false,
-      warehouse: false,
-    });
   };
 
   const handleImageChange = (file: File) => {
@@ -100,13 +97,12 @@ const AddItemDialog = ({
       warehouse: !newItem.warehouse,
     };
     
-    setFormErrors(errors);
     if (Object.values(errors).some(Boolean)) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    const success = await onAddItem({
+    const success = await onSubmit({
       ...newItem,
       image: imagePreview || ""
     });
@@ -118,16 +114,10 @@ const AddItemDialog = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
+    <Dialog open={open} onOpenChange={(open) => {
       onOpenChange(open);
       if (!open) resetForm();
     }}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          {t.addItem}
-        </Button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t.addNewStockItem}</DialogTitle>
