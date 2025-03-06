@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, Building } from "lucide-react";
+import {
+  ArrowLeft,
+  Lock,
+  UserCog,
+  Shield,
+  UserX,
+  Users,
+  Building,
+  Power,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserForm } from "@/components/user-management/UserForm";
 import { OrganizationForm } from "@/components/user-management/OrganizationForm";
+import { UserRole } from "@/utils/roles";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AuditLogs } from "@/components/user-management/AuditLogs";
 import { OrganizationSummary } from "@/types/audit";
@@ -16,7 +28,7 @@ import { OrganizationSummary } from "@/types/audit";
 type UserType = {
   id: string;
   email: string;
-  role: string;
+  role: UserRole;
   first_name: string;
   last_name: string;
   is_active?: boolean;
@@ -31,8 +43,10 @@ type OrganizationType = {
 
 const UserManagement = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { language } = useLanguage();
   const queryClient = useQueryClient();
+
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
 
   // Fetch Users
@@ -41,7 +55,7 @@ const UserManagement = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, role, is_active") // Select only necessary fields
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw new Error("Failed to load users.");
@@ -55,7 +69,7 @@ const UserManagement = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("organizations")
-        .select("id, name, is_active, created_at") // Select necessary fields only
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw new Error("Failed to load organizations.");
@@ -73,9 +87,9 @@ const UserManagement = () => {
     },
   });
 
-  // Add User Mutation
+  // Handle Add User
   const addUser = useMutation({
-    mutationFn: async (userData: { email: string; password: string; firstName: string; lastName: string; role: string }) => {
+    mutationFn: async (userData: { email: string; password: string; firstName: string; lastName: string; role: UserRole }) => {
       const { error } = await supabase.auth.signUp({
         email: userData.email.trim(),
         password: userData.password.trim(),
@@ -87,20 +101,16 @@ const UserManagement = () => {
           },
         },
       });
-
       if (error) throw new Error("Failed to add user.");
     },
     onSuccess: () => {
       toast.success("User added successfully");
-      queryClient.invalidateQueries(["users"]); // Refresh users after adding
+      queryClient.invalidateQueries(["users"]);
     },
-    onError: (error: any) => {
-      console.error("Error adding user:", error);
-      toast.error("Failed to add user");
-    },
+    onError: () => toast.error("Failed to add user"),
   });
 
-  // Add Organization Mutation
+  // Handle Add Organization
   const addOrganization = useMutation({
     mutationFn: async (data: { name: string }) => {
       const { error } = await supabase.from("organizations").insert([{ name: data.name.trim() }]);
@@ -108,25 +118,22 @@ const UserManagement = () => {
     },
     onSuccess: () => {
       toast.success("Organization added successfully");
-      queryClient.invalidateQueries(["organizations"]); // Refresh organizations after adding
+      queryClient.invalidateQueries(["organizations"]);
     },
-    onError: (error: any) => {
-      console.error("Error adding organization:", error);
-      toast.error("Failed to add organization");
-    },
+    onError: () => toast.error("Failed to add organization"),
   });
 
-  // Assign User to Organization
+  // Handle Assign User to Organization
   const assignUserToOrg = async (userId: string, orgId: string) => {
     try {
-      const { data: existingAssignment } = await supabase
+      const existingAssignment = await supabase
         .from("user_organizations")
         .select("id")
         .eq("user_id", userId)
         .eq("organization_id", orgId)
-        .maybeSingle();
+        .single();
 
-      if (existingAssignment) {
+      if (existingAssignment.data) {
         toast.warning("User is already assigned to this organization.");
         return;
       }
@@ -137,9 +144,7 @@ const UserManagement = () => {
 
       if (error) throw error;
       toast.success("User assigned to organization");
-      queryClient.invalidateQueries(["users"]);
     } catch (error) {
-      console.error("Error assigning user to organization:", error);
       toast.error("Failed to assign user to organization");
     }
   };
@@ -176,11 +181,7 @@ const UserManagement = () => {
             {organizations.map((org) => (
               <tr key={org.id} className="border-b">
                 <td className="py-4">{org.name}</td>
-                <td className="py-4">
-                  <span className={`px-2 py-1 rounded text-sm ${org.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                    {org.is_active ? "Active" : "Inactive"}
-                  </span>
-                </td>
+                <td className="py-4">{org.is_active ? "Active" : "Inactive"}</td>
                 <td className="py-4">{new Date(org.created_at).toLocaleDateString()}</td>
               </tr>
             ))}
