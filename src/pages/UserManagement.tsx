@@ -1,3 +1,47 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  Lock,
+  UserCog,
+  UserX,
+  Building,
+  Power,
+  RefreshCw
+} from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { UserForm } from "@/components/user-management/UserForm";
+import { OrganizationForm } from "@/components/user-management/OrganizationForm";
+import { UserRole } from "@/utils/roles";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AuditLogs } from "@/components/user-management/AuditLogs";
+import { OrganizationSummary } from "@/types/audit";
+
+const UserManagement = () => {
+  // ... component code
+};
+
+export default UserManagement;
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
