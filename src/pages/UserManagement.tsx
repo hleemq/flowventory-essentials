@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -19,9 +20,21 @@ import { toast } from "sonner";
 import { UserForm } from "@/components/user-management/UserForm";
 import { OrganizationForm } from "@/components/user-management/OrganizationForm";
 import { UserRole } from "@/utils/roles";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
 import { AuditLogs } from "@/components/user-management/AuditLogs";
 import { OrganizationSummary } from "@/types/audit";
 
@@ -41,152 +54,434 @@ type OrganizationType = {
   created_at: string;
 };
 
+const translations = {
+  en: {
+    title: "User & Organization",
+    backToSettings: "Back to Settings",
+    addUser: "Add User",
+    addOrganization: "Add Organization",
+    organizations: "Organizations",
+    users: "Users",
+    name: "Name",
+    email: "Email",
+    role: "Role",
+    status: "Status",
+    created: "Created",
+    actions: "Actions",
+    active: "Active",
+    inactive: "Inactive",
+    assignOrganization: "Assign Organization",
+    selectOrganization: "Select organization",
+    loading: "Loading...",
+    switchOrganization: "Switch Organization",
+    currentSchema: "Current Schema",
+    summary: "Organization Summary",
+    totalUsers: "Total Users",
+    totalItems: "Total Items",
+    totalOrders: "Total Orders",
+    lastOrder: "Last Order"
+  },
+  fr: {
+    title: "Utilisateur & Organisation",
+    backToSettings: "Retour aux paramètres",
+    addUser: "Ajouter un utilisateur",
+    addOrganization: "Ajouter une organisation",
+    organizations: "Organisations",
+    users: "Utilisateurs",
+    name: "Nom",
+    email: "Email",
+    role: "Rôle",
+    status: "Statut",
+    created: "Créé le",
+    actions: "Actions",
+    active: "Actif",
+    inactive: "Inactif",
+    assignOrganization: "Assigner une organisation",
+    selectOrganization: "Sélectionner une organisation",
+    loading: "Chargement...",
+    switchOrganization: "Changer d'organisation",
+    currentSchema: "Schéma actuel",
+    summary: "Résumé de l'organisation",
+    totalUsers: "Nombre d'utilisateurs",
+    totalItems: "Nombre d'articles",
+    totalOrders: "Nombre de commandes",
+    lastOrder: "Dernière commande"
+  },
+  ar: {
+    title: "المستخدمين والمؤسسات",
+    backToSettings: "العودة للإعدادات",
+    addUser: "إضافة مستخدم",
+    addOrganization: "إضافة مؤسسة",
+    organizations: "المؤسسات",
+    users: "المستخدمين",
+    name: "الاسم",
+    email: "البريد الإلكتروني",
+    role: "الدور",
+    status: "الحالة",
+    created: "تاريخ الإنشاء",
+    actions: "الإجراءات",
+    active: "نشط",
+    inactive: "غير نشط",
+    assignOrganization: "تعيين المؤسسة",
+    selectOrganization: "اختر المؤسسة",
+    loading: "جاري التحميل...",
+    switchOrganization: "تغيير المؤسسة",
+    currentSchema: "المخطط الحالي",
+    summary: "ملخص المؤسسة",
+    totalUsers: "إجمالي المستخدمين",
+    totalItems: "إجمالي العناصر",
+    totalOrders: "إجمالي الطلبات",
+    lastOrder: "آخر طلب"
+  }
+};
+
 const UserManagement = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { language } = useLanguage();
-  const queryClient = useQueryClient();
-
+  const t = translations[language];
+  
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationType[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
 
-  // Fetch Users
-  const { data: users = [], isLoading: loadingUsers } = useQuery({
-    queryKey: ["users"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw new Error("Failed to load users.");
-      return data as UserType[];
-    },
-  });
-
-  // Fetch Organizations
-  const { data: organizations = [], isLoading: loadingOrganizations } = useQuery({
-    queryKey: ["organizations"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("organizations")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw new Error("Failed to load organizations.");
-      return data as OrganizationType[];
-    },
-  });
-
-  // Fetch Organization Summary
   const { data: orgSummary } = useQuery({
-    queryKey: ["org-summary"],
+    queryKey: ['org-summary'],
     queryFn: async () => {
-      const { data, error } = await supabase.from("organization_summary").select("*");
-      if (error) throw new Error("Failed to load organization summary.");
+      const { data, error } = await supabase
+        .from('organization_summary')
+        .select('*');
+      
+      if (error) throw error;
       return data as OrganizationSummary[];
-    },
+    }
   });
 
-  // Handle Add User
-  const addUser = useMutation({
-    mutationFn: async (userData: { email: string; password: string; firstName: string; lastName: string; role: UserRole }) => {
-      const { error } = await supabase.auth.signUp({
-        email: userData.email.trim(),
-        password: userData.password.trim(),
-        options: {
-          data: {
-            first_name: userData.firstName.trim(),
-            last_name: userData.lastName.trim(),
-            role: userData.role,
-          },
-        },
-      });
-      if (error) throw new Error("Failed to add user.");
-    },
-    onSuccess: () => {
-      toast.success("User added successfully");
-      queryClient.invalidateQueries(["users"]);
-    },
-    onError: () => toast.error("Failed to add user"),
-  });
+  useEffect(() => {
+    fetchUsers();
+    fetchOrganizations();
+  }, []);
 
-  // Handle Add Organization
-  const addOrganization = useMutation({
-    mutationFn: async (data: { name: string }) => {
-      const { error } = await supabase.from("organizations").insert([{ name: data.name.trim() }]);
-      if (error) throw new Error("Failed to add organization.");
-    },
-    onSuccess: () => {
-      toast.success("Organization added successfully");
-      queryClient.invalidateQueries(["organizations"]);
-    },
-    onError: () => toast.error("Failed to add organization"),
-  });
-
-  // Handle Assign User to Organization
-  const assignUserToOrg = async (userId: string, orgId: string) => {
+  const fetchUsers = async () => {
     try {
-      const existingAssignment = await supabase
-        .from("user_organizations")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("organization_id", orgId)
-        .single();
-
-      if (existingAssignment.data) {
-        toast.warning("User is already assigned to this organization.");
-        return;
-      }
-
-      const { error } = await supabase
-        .from("user_organizations")
-        .insert([{ user_id: userId, organization_id: orgId }]);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error("Failed to load users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOrganizations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOrganizations(data || []);
+    } catch (error) {
+      console.error('Error fetching organizations:', error);
+      toast.error("Failed to load organizations");
+    }
+  };
+
+  const handleAddUser = async (userData: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+  }) => {
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            role: userData.role
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      toast.success("User added successfully");
+      fetchUsers();
+    } catch (error) {
+      console.error('Error adding user:', error);
+      toast.error("Failed to add user");
+    }
+  };
+
+  const handleAddOrganization = async (data: { name: string }) => {
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .insert([{ name: data.name }]);
+
+      if (error) throw error;
+
+      toast.success("Organization added successfully");
+      fetchOrganizations();
+    } catch (error) {
+      console.error('Error adding organization:', error);
+      toast.error("Failed to add organization");
+    }
+  };
+
+  const toggleOrganizationStatus = async (orgId: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('organizations')
+        .update({ is_active: !isActive })
+        .eq('id', orgId);
+
+      if (error) throw error;
+
+      toast.success("Organization status updated");
+      fetchOrganizations();
+    } catch (error) {
+      console.error('Error updating organization status:', error);
+      toast.error("Failed to update organization status");
+    }
+  };
+
+  const assignUserToOrganization = async (userId: string, organizationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_organizations')
+        .insert([{ user_id: userId, organization_id: organizationId }]);
+
+      if (error) throw error;
+
       toast.success("User assigned to organization");
     } catch (error) {
+      console.error('Error assigning user to organization:', error);
       toast.error("Failed to assign user to organization");
     }
   };
 
-  if (loadingUsers || loadingOrganizations) {
-    return <div className="container py-8">Loading...</div>;
+  const toggleUserStatus = async (userId: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: !isActive })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast.success("User status updated");
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      toast.error("Failed to update user status");
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      toast.success("Password reset email sent");
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      toast.error("Failed to send password reset email");
+    }
+  };
+
+  const switchOrganizationSchema = async (organizationId: string) => {
+    try {
+      await supabase.rpc('set_organization_schema', {
+        org_id: organizationId
+      });
+      toast.success("Organization schema switched successfully");
+    } catch (error) {
+      console.error('Error switching organization schema:', error);
+      toast.error("Failed to switch organization schema");
+    }
+  };
+
+  if (loading) {
+    return <div className="container py-8">{t.loading}</div>;
   }
 
   return (
     <div className="container py-8 space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold">User & Organization</h1>
-        <Button variant="outline" onClick={() => navigate("/settings")}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Settings
+        <h1 className="text-4xl font-bold">{t.title}</h1>
+        <Button variant="outline" onClick={() => navigate('/settings')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t.backToSettings}
         </Button>
       </div>
 
       <div className="flex justify-between items-center gap-4">
-        <UserForm onSubmit={addUser.mutate} buttonText="Add User" />
-        <OrganizationForm onSubmit={addOrganization.mutate} buttonText="Add Organization" />
+        <UserForm onSubmit={handleAddUser} buttonText={t.addUser} />
+        <OrganizationForm onSubmit={handleAddOrganization} buttonText={t.addOrganization} />
       </div>
 
       <Card className="p-6">
-        <h2 className="text-2xl font-semibold mb-4">Organizations</h2>
-        <table className="w-full">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="pb-2">Name</th>
-              <th className="pb-2">Status</th>
-              <th className="pb-2">Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {organizations.map((org) => (
-              <tr key={org.id} className="border-b">
-                <td className="py-4">{org.name}</td>
-                <td className="py-4">{org.is_active ? "Active" : "Inactive"}</td>
-                <td className="py-4">{new Date(org.created_at).toLocaleDateString()}</td>
+        <h2 className="text-2xl font-semibold mb-4">{t.summary}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {orgSummary?.map((summary) => (
+            <div key={summary.organization_id} className="p-4 border rounded-lg">
+              <h3 className="font-medium">{summary.organization_name}</h3>
+              <div className="mt-2 space-y-1 text-sm">
+                <p>{t.totalUsers}: {summary.total_users}</p>
+                <p>{t.totalItems}: {summary.total_items}</p>
+                <p>{t.totalOrders}: {summary.total_orders}</p>
+                {summary.last_order_date && (
+                  <p>{t.lastOrder}: {new Date(summary.last_order_date).toLocaleDateString(language)}</p>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => switchOrganizationSchema(summary.organization_id)}
+                >
+                  {t.switchOrganization}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-2xl font-semibold mb-4">{t.organizations}</h2>
+        <div className="space-y-4">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="pb-2">{t.name}</th>
+                <th className="pb-2">{t.status}</th>
+                <th className="pb-2">{t.created}</th>
+                <th className="pb-2">{t.actions}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {organizations.map((org) => (
+                <tr key={org.id} className="border-b">
+                  <td className="py-4">{org.name}</td>
+                  <td className="py-4">
+                    <span className={`px-2 py-1 rounded text-sm ${
+                      org.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {org.is_active ? t.active : t.inactive}
+                    </span>
+                  </td>
+                  <td className="py-4">
+                    {new Date(org.created_at).toLocaleDateString(language)}
+                  </td>
+                  <td className="py-4">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => toggleOrganizationStatus(org.id, org.is_active)}
+                    >
+                      <Power className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="text-2xl font-semibold mb-4">{t.users}</h2>
+        <div className="space-y-4">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left border-b">
+                <th className="pb-2">{t.name}</th>
+                <th className="pb-2">{t.email}</th>
+                <th className="pb-2">{t.role}</th>
+                <th className="pb-2">{t.organizations}</th>
+                <th className="pb-2">{t.actions}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id} className="border-b">
+                  <td className="py-4">
+                    {user.first_name} {user.last_name}
+                  </td>
+                  <td className="py-4">{user.email}</td>
+                  <td className="py-4 capitalize">{user.role}</td>
+                  <td className="py-4">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Building className="mr-2 h-4 w-4" />
+                          {t.assignOrganization}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>{t.assignOrganization}</DialogTitle>
+                        </DialogHeader>
+                        <Select
+                          value={selectedOrg || ''}
+                          onValueChange={(value) => {
+                            setSelectedOrg(value);
+                            assignUserToOrganization(user.id, value);
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t.selectOrganization} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizations.map((org) => (
+                              <SelectItem key={org.id} value={org.id}>
+                                {org.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </DialogContent>
+                    </Dialog>
+                  </td>
+                  <td className="py-4">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => toggleUserStatus(user.id, !!user.is_active)}
+                      >
+                        {user.is_active ? (
+                          <UserX className="h-4 w-4" />
+                        ) : (
+                          <UserCog className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => resetPassword(user.email)}
+                      >
+                        <Lock className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       <AuditLogs />
