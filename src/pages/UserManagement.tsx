@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -80,7 +81,13 @@ const translations = {
     totalUsers: "Total Users",
     totalItems: "Total Items",
     totalOrders: "Total Orders",
-    lastOrder: "Last Order"
+    lastOrder: "Last Order",
+    noUsers: "No users found. Add your first user using the form above.",
+    noOrganizations: "No organizations found. Create your first organization using the form above.",
+    refreshing: "Refreshing...",
+    refresh: "Refresh",
+    errorLoadingUsers: "Error loading users. Please try again.",
+    errorLoadingOrgs: "Error loading organizations. Please try again."
   },
   fr: {
     title: "Utilisateur & Organisation",
@@ -146,7 +153,7 @@ const UserManagement = () => {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Use React Query for data fetching
+  // Use React Query for data fetching with improved error handling
   const {
     data: users = [],
     isLoading: isLoadingUsers,
@@ -155,13 +162,26 @@ const UserManagement = () => {
   } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
+      console.log("Fetching users data");
+      // For admin users, we fetch all users without filtering
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, auth.users!inner(email)')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as UserType[];
+      if (error) {
+        console.error("Error fetching users:", error);
+        throw error;
+      }
+      
+      // Map the data to include the email from the auth.users table
+      const mappedData = data.map(profile => ({
+        ...profile,
+        email: profile.auth?.users?.email || '',
+      }));
+      
+      console.log("Fetched users:", mappedData);
+      return mappedData as UserType[];
     }
   });
 
@@ -173,24 +193,41 @@ const UserManagement = () => {
   } = useQuery({
     queryKey: ['organizations'],
     queryFn: async () => {
+      console.log("Fetching organizations data");
       const { data, error } = await supabase
         .from('organizations')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching organizations:", error);
+        throw error;
+      }
+      
+      console.log("Fetched organizations:", data);
       return data as OrganizationType[];
     }
   });
 
-  const { data: orgSummary = [], refetch: refetchSummary } = useQuery({
+  const { 
+    data: orgSummary = [], 
+    isLoading: isLoadingSummary,
+    error: summaryError,
+    refetch: refetchSummary 
+  } = useQuery({
     queryKey: ['org-summary'],
     queryFn: async () => {
+      console.log("Fetching organization summary data");
       const { data, error } = await supabase
         .from('organization_summary')
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching organization summary:", error);
+        throw error;
+      }
+      
+      console.log("Fetched organization summary:", data);
       return data as OrganizationSummary[];
     }
   });
@@ -198,18 +235,41 @@ const UserManagement = () => {
   useEffect(() => {
     if (usersError) {
       console.error('Error fetching users:', usersError);
-      toast.error("Failed to load users");
+      toast.error(t.errorLoadingUsers);
     }
     
     if (orgsError) {
       console.error('Error fetching organizations:', orgsError);
-      toast.error("Failed to load organizations");
+      toast.error(t.errorLoadingOrgs);
     }
-  }, [usersError, orgsError]);
+    
+    if (summaryError) {
+      console.error('Error fetching organization summary:', summaryError);
+      toast.error("Failed to load organization summary");
+    }
+  }, [usersError, orgsError, summaryError, t]);
+
+  // Function to fetch email for a user from auth.users
+  const fetchUserEmail = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('auth.users')
+        .select('email')
+        .eq('id', userId)
+        .single();
+      
+      if (error) throw error;
+      return data?.email || '';
+    } catch (error) {
+      console.error('Error fetching user email:', error);
+      return '';
+    }
+  };
 
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
+      console.log("Refreshing all data");
       await Promise.all([
         refetchUsers(),
         refetchOrgs(),
@@ -290,6 +350,8 @@ const UserManagement = () => {
 
   const assignUserToOrganization = async (userId: string, organizationId: string) => {
     try {
+      console.log(`Assigning user ${userId} to organization ${organizationId}`);
+      
       // Check if relationship already exists
       const { data: existingRelation, error: checkError } = await supabase
         .from('user_organizations')
@@ -306,6 +368,10 @@ const UserManagement = () => {
           .insert([{ user_id: userId, organization_id: organizationId }]);
 
         if (error) throw error;
+        
+        console.log("User successfully assigned to organization");
+      } else {
+        console.log("Relationship already exists, no changes made");
       }
 
       toast.success("User assigned to organization");
@@ -359,7 +425,7 @@ const UserManagement = () => {
     }
   };
 
-  const isLoading = isLoadingUsers || isLoadingOrgs;
+  const isLoading = isLoadingUsers || isLoadingOrgs || isLoadingSummary;
 
   if (isLoading) {
     return <div className="container py-8">{t.loading}</div>;
@@ -372,7 +438,7 @@ const UserManagement = () => {
         <div className="flex gap-2">
           <Button variant="outline" onClick={refreshData} disabled={isRefreshing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
+            {isRefreshing ? t.refreshing : t.refresh}
           </Button>
           <Button variant="outline" onClick={() => navigate('/settings')}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -388,36 +454,42 @@ const UserManagement = () => {
 
       <Card className="p-6">
         <h2 className="text-2xl font-semibold mb-4">{t.summary}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {orgSummary?.map((summary) => (
-            <div key={summary.organization_id} className="p-4 border rounded-lg">
-              <h3 className="font-medium">{summary.organization_name}</h3>
-              <div className="mt-2 space-y-1 text-sm">
-                <p>{t.totalUsers}: {summary.total_users}</p>
-                <p>{t.totalItems}: {summary.total_items}</p>
-                <p>{t.totalOrders}: {summary.total_orders}</p>
-                {summary.last_order_date && (
-                  <p>{t.lastOrder}: {new Date(summary.last_order_date).toLocaleDateString(language)}</p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => switchOrganizationSchema(summary.organization_id)}
-                >
-                  {t.switchOrganization}
-                </Button>
+        {orgSummary.length === 0 ? (
+          <div className="text-center p-4 text-muted-foreground">
+            No organization summary data available.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {orgSummary?.map((summary) => (
+              <div key={summary.organization_id} className="p-4 border rounded-lg">
+                <h3 className="font-medium">{summary.organization_name}</h3>
+                <div className="mt-2 space-y-1 text-sm">
+                  <p>{t.totalUsers}: {summary.total_users}</p>
+                  <p>{t.totalItems}: {summary.total_items}</p>
+                  <p>{t.totalOrders}: {summary.total_orders}</p>
+                  {summary.last_order_date && (
+                    <p>{t.lastOrder}: {new Date(summary.last_order_date).toLocaleDateString(language)}</p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => switchOrganizationSchema(summary.organization_id)}
+                  >
+                    {t.switchOrganization}
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card className="p-6">
         <h2 className="text-2xl font-semibold mb-4">{t.organizations}</h2>
         {organizations.length === 0 ? (
           <div className="text-center p-4 text-muted-foreground">
-            No organizations found. Create your first organization using the form above.
+            {t.noOrganizations}
           </div>
         ) : (
           <div className="space-y-4 overflow-x-auto">
@@ -465,7 +537,7 @@ const UserManagement = () => {
         <h2 className="text-2xl font-semibold mb-4">{t.users}</h2>
         {users.length === 0 ? (
           <div className="text-center p-4 text-muted-foreground">
-            No users found. Add your first user using the form above.
+            {t.noUsers}
           </div>
         ) : (
           <div className="space-y-4 overflow-x-auto">
@@ -498,6 +570,9 @@ const UserManagement = () => {
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>{t.assignOrganization}</DialogTitle>
+                            <DialogDescription>
+                              Select an organization to assign this user to
+                            </DialogDescription>
                           </DialogHeader>
                           <Select
                             onValueChange={(value) => {
