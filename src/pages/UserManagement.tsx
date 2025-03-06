@@ -12,6 +12,7 @@ import {
   Users,
   Building,
   Power,
+  RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -34,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AuditLogs } from "@/components/user-management/AuditLogs";
 import { OrganizationSummary } from "@/types/audit";
 
@@ -140,13 +141,49 @@ const UserManagement = () => {
   const { user } = useAuth();
   const { language } = useLanguage();
   const t = translations[language];
+  const queryClient = useQueryClient();
   
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [organizations, setOrganizations] = useState<OrganizationType[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: orgSummary } = useQuery({
+  // Use React Query for data fetching
+  const {
+    data: users = [],
+    isLoading: isLoadingUsers,
+    error: usersError,
+    refetch: refetchUsers
+  } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as UserType[];
+    }
+  });
+
+  const {
+    data: organizations = [],
+    isLoading: isLoadingOrgs,
+    error: orgsError,
+    refetch: refetchOrgs
+  } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data as OrganizationType[];
+    }
+  });
+
+  const { data: orgSummary = [], refetch: refetchSummary } = useQuery({
     queryKey: ['org-summary'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -159,39 +196,31 @@ const UserManagement = () => {
   });
 
   useEffect(() => {
-    fetchUsers();
-    fetchOrganizations();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setUsers(data || []);
-    } catch (error) {
-      console.error('Error fetching users:', error);
+    if (usersError) {
+      console.error('Error fetching users:', usersError);
       toast.error("Failed to load users");
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const fetchOrganizations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOrganizations(data || []);
-    } catch (error) {
-      console.error('Error fetching organizations:', error);
+    
+    if (orgsError) {
+      console.error('Error fetching organizations:', orgsError);
       toast.error("Failed to load organizations");
+    }
+  }, [usersError, orgsError]);
+
+  const refreshData = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refetchUsers(),
+        refetchOrgs(),
+        refetchSummary()
+      ]);
+      toast.success("Data refreshed successfully");
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error("Failed to refresh data");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -218,7 +247,7 @@ const UserManagement = () => {
       if (signUpError) throw signUpError;
 
       toast.success("User added successfully");
-      fetchUsers();
+      refetchUsers();
     } catch (error) {
       console.error('Error adding user:', error);
       toast.error("Failed to add user");
@@ -234,7 +263,8 @@ const UserManagement = () => {
       if (error) throw error;
 
       toast.success("Organization added successfully");
-      fetchOrganizations();
+      refetchOrgs();
+      refetchSummary();
     } catch (error) {
       console.error('Error adding organization:', error);
       toast.error("Failed to add organization");
@@ -251,7 +281,7 @@ const UserManagement = () => {
       if (error) throw error;
 
       toast.success("Organization status updated");
-      fetchOrganizations();
+      refetchOrgs();
     } catch (error) {
       console.error('Error updating organization status:', error);
       toast.error("Failed to update organization status");
@@ -260,13 +290,28 @@ const UserManagement = () => {
 
   const assignUserToOrganization = async (userId: string, organizationId: string) => {
     try {
-      const { error } = await supabase
+      // Check if relationship already exists
+      const { data: existingRelation, error: checkError } = await supabase
         .from('user_organizations')
-        .insert([{ user_id: userId, organization_id: organizationId }]);
+        .select('*')
+        .eq('user_id', userId)
+        .eq('organization_id', organizationId);
+      
+      if (checkError) throw checkError;
+      
+      // Only insert if relationship doesn't exist
+      if (!existingRelation || existingRelation.length === 0) {
+        const { error } = await supabase
+          .from('user_organizations')
+          .insert([{ user_id: userId, organization_id: organizationId }]);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       toast.success("User assigned to organization");
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['org-summary'] });
     } catch (error) {
       console.error('Error assigning user to organization:', error);
       toast.error("Failed to assign user to organization");
@@ -283,7 +328,7 @@ const UserManagement = () => {
       if (error) throw error;
 
       toast.success("User status updated");
-      fetchUsers();
+      refetchUsers();
     } catch (error) {
       console.error('Error updating user status:', error);
       toast.error("Failed to update user status");
@@ -307,24 +352,33 @@ const UserManagement = () => {
         org_id: organizationId
       });
       toast.success("Organization schema switched successfully");
+      refetchSummary();
     } catch (error) {
       console.error('Error switching organization schema:', error);
       toast.error("Failed to switch organization schema");
     }
   };
 
-  if (loading) {
+  const isLoading = isLoadingUsers || isLoadingOrgs;
+
+  if (isLoading) {
     return <div className="container py-8">{t.loading}</div>;
   }
 
   return (
-    <div className="container py-8 space-y-8">
+    <div className="container py-8 space-y-8" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between">
         <h1 className="text-4xl font-bold">{t.title}</h1>
-        <Button variant="outline" onClick={() => navigate('/settings')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t.backToSettings}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={refreshData} disabled={isRefreshing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/settings')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {t.backToSettings}
+          </Button>
+        </div>
       </div>
 
       <div className="flex justify-between items-center gap-4">
@@ -361,127 +415,138 @@ const UserManagement = () => {
 
       <Card className="p-6">
         <h2 className="text-2xl font-semibold mb-4">{t.organizations}</h2>
-        <div className="space-y-4">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="pb-2">{t.name}</th>
-                <th className="pb-2">{t.status}</th>
-                <th className="pb-2">{t.created}</th>
-                <th className="pb-2">{t.actions}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {organizations.map((org) => (
-                <tr key={org.id} className="border-b">
-                  <td className="py-4">{org.name}</td>
-                  <td className="py-4">
-                    <span className={`px-2 py-1 rounded text-sm ${
-                      org.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {org.is_active ? t.active : t.inactive}
-                    </span>
-                  </td>
-                  <td className="py-4">
-                    {new Date(org.created_at).toLocaleDateString(language)}
-                  </td>
-                  <td className="py-4">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => toggleOrganizationStatus(org.id, org.is_active)}
-                    >
-                      <Power className="h-4 w-4" />
-                    </Button>
-                  </td>
+        {organizations.length === 0 ? (
+          <div className="text-center p-4 text-muted-foreground">
+            No organizations found. Create your first organization using the form above.
+          </div>
+        ) : (
+          <div className="space-y-4 overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="pb-2">{t.name}</th>
+                  <th className="pb-2">{t.status}</th>
+                  <th className="pb-2">{t.created}</th>
+                  <th className="pb-2">{t.actions}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {organizations.map((org) => (
+                  <tr key={org.id} className="border-b">
+                    <td className="py-4">{org.name}</td>
+                    <td className="py-4">
+                      <span className={`px-2 py-1 rounded text-sm ${
+                        org.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {org.is_active ? t.active : t.inactive}
+                      </span>
+                    </td>
+                    <td className="py-4">
+                      {new Date(org.created_at).toLocaleDateString(language)}
+                    </td>
+                    <td className="py-4">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => toggleOrganizationStatus(org.id, org.is_active)}
+                      >
+                        <Power className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       <Card className="p-6">
         <h2 className="text-2xl font-semibold mb-4">{t.users}</h2>
-        <div className="space-y-4">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b">
-                <th className="pb-2">{t.name}</th>
-                <th className="pb-2">{t.email}</th>
-                <th className="pb-2">{t.role}</th>
-                <th className="pb-2">{t.organizations}</th>
-                <th className="pb-2">{t.actions}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b">
-                  <td className="py-4">
-                    {user.first_name} {user.last_name}
-                  </td>
-                  <td className="py-4">{user.email}</td>
-                  <td className="py-4 capitalize">{user.role}</td>
-                  <td className="py-4">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Building className="mr-2 h-4 w-4" />
-                          {t.assignOrganization}
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>{t.assignOrganization}</DialogTitle>
-                        </DialogHeader>
-                        <Select
-                          value={selectedOrg || ''}
-                          onValueChange={(value) => {
-                            setSelectedOrg(value);
-                            assignUserToOrganization(user.id, value);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={t.selectOrganization} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {organizations.map((org) => (
-                              <SelectItem key={org.id} value={org.id}>
-                                {org.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </DialogContent>
-                    </Dialog>
-                  </td>
-                  <td className="py-4">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => toggleUserStatus(user.id, !!user.is_active)}
-                      >
-                        {user.is_active ? (
-                          <UserX className="h-4 w-4" />
-                        ) : (
-                          <UserCog className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => resetPassword(user.email)}
-                      >
-                        <Lock className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
+        {users.length === 0 ? (
+          <div className="text-center p-4 text-muted-foreground">
+            No users found. Add your first user using the form above.
+          </div>
+        ) : (
+          <div className="space-y-4 overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="pb-2">{t.name}</th>
+                  <th className="pb-2">{t.email}</th>
+                  <th className="pb-2">{t.role}</th>
+                  <th className="pb-2">{t.organizations}</th>
+                  <th className="pb-2">{t.actions}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id} className="border-b">
+                    <td className="py-4">
+                      {user.first_name} {user.last_name}
+                    </td>
+                    <td className="py-4">{user.email}</td>
+                    <td className="py-4 capitalize">{user.role}</td>
+                    <td className="py-4">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Building className="mr-2 h-4 w-4" />
+                            {t.assignOrganization}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>{t.assignOrganization}</DialogTitle>
+                          </DialogHeader>
+                          <Select
+                            onValueChange={(value) => {
+                              setSelectedOrg(value);
+                              assignUserToOrganization(user.id, value);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={t.selectOrganization} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {organizations.map((org) => (
+                                <SelectItem key={org.id} value={org.id}>
+                                  {org.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </DialogContent>
+                      </Dialog>
+                    </td>
+                    <td className="py-4">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => toggleUserStatus(user.id, !!user.is_active)}
+                        >
+                          {user.is_active ? (
+                            <UserX className="h-4 w-4" />
+                          ) : (
+                            <UserCog className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => resetPassword(user.email)}
+                        >
+                          <Lock className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       <AuditLogs />

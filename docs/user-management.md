@@ -22,7 +22,7 @@ The application utilizes Supabase's built-in authentication system, which provid
 2. **profiles**
    - Contains user profile information
    - Linked to auth.users via user ID
-   - Fields: id, first_name, last_name, role, created_at, updated_at
+   - Fields: id, first_name, last_name, role, created_at, updated_at, is_active
 
 3. **user_organizations**
    - Maps users to organizations for multi-tenant functionality
@@ -31,6 +31,14 @@ The application utilizes Supabase's built-in authentication system, which provid
 4. **user_roles**
    - Defines roles for users within each organization
    - Fields: id, user_id, organization_id, role, created_at, updated_at
+
+5. **organizations**
+   - Stores organization data
+   - Fields: id, name, is_active, created_at, updated_at
+
+6. **organization_summary** (Materialized View)
+   - Provides summary statistics for each organization
+   - Fields: organization_id, organization_name, total_users, total_items, total_orders, last_order_date
 
 ## Row-Level Security (RLS)
 
@@ -57,6 +65,18 @@ The application implements a role-based access control system:
    - Backend: RLS policies enforce data access rules at the database level
    - API Access: Edge functions validate permissions for sensitive operations
 
+## Multi-currency and Multi-language Support
+
+1. **Currency Management**:
+   - Support for MAD, EUR, and USD
+   - Currency settings stored in user preferences and organization settings
+   - All monetary values displayed in the selected currency
+
+2. **Internationalization**:
+   - Support for Arabic, French, and English
+   - RTL layout for Arabic language
+   - Translations managed through the LanguageContext
+
 ## Security Features
 
 1. **JWT Authentication**: Supabase uses JWT tokens for secure authentication
@@ -74,15 +94,29 @@ The application implements a role-based access control system:
 5. The user is redirected to the dashboard
 6. Subsequent API requests include the JWT token for authentication
 
-## RTL and Multi-language Support
+## Managing Users and Organizations
 
-The authentication UI components support RTL and multiple languages through the LanguageContext, allowing seamless internationalization of all authentication-related screens.
+The User Management page (`/user-management`) provides administrative tools for:
 
-## Areas for Improvement
+1. **User Management**:
+   - Adding new users
+   - Toggling user active status
+   - Sending password reset emails
 
-The user management system could be enhanced with:
+2. **Organization Management**:
+   - Creating new organizations
+   - Assigning users to organizations
+   - Viewing organization statistics
+   - Toggling organization active status
 
-1. More granular permission controls
-2. Enhanced audit logging for security-sensitive operations
-3. Multi-factor authentication
-4. Social login options beyond the current implementation
+## Troubleshooting
+
+If users or organizations are not visible in the management interface:
+
+1. Check that the current user has appropriate permissions
+2. Verify that the data exists in the database
+3. Ensure Row Level Security policies allow access to the data
+4. Try refreshing the data using the refresh button
+5. Check browser console for any error messages
+6. Verify network requests to ensure data is being properly fetched
+

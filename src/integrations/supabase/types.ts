@@ -45,13 +45,6 @@ export type Database = {
             foreignKeyName: "customers_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
-          },
-          {
-            foreignKeyName: "customers_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -165,13 +158,6 @@ export type Database = {
             foreignKeyName: "items_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
-          },
-          {
-            foreignKeyName: "items_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -206,15 +192,7 @@ export type Database = {
           message?: string
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       order_items: {
         Row: {
@@ -296,13 +274,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "customers"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
           },
           {
             foreignKeyName: "orders_organization_id_fkey"
@@ -412,21 +383,7 @@ export type Database = {
             foreignKeyName: "settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
-          },
-          {
-            foreignKeyName: "settings_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
             referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "settings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -470,13 +427,6 @@ export type Database = {
             foreignKeyName: "system_audit_logs_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
-          },
-          {
-            foreignKeyName: "system_audit_logs_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -503,118 +453,6 @@ export type Database = {
           details?: Json | null
           id?: string
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      user_organizations: {
-        Row: {
-          created_at: string | null
-          id: string
-          organization_id: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          organization_id?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          organization_id?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_organizations_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
-          },
-          {
-            foreignKeyName: "user_organizations_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_roles: {
-        Row: {
-          created_at: string | null
-          id: string
-          organization_id: string | null
-          role: string
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          organization_id?: string | null
-          role: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          organization_id?: string | null
-          role?: string
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
-          },
-          {
-            foreignKeyName: "user_roles_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      users: {
-        Row: {
-          created_at: string | null
-          email: string
-          id: string
-          password_hash: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          id?: string
-          password_hash: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          id?: string
-          password_hash?: string
-          updated_at?: string | null
         }
         Relationships: []
       }
@@ -651,13 +489,6 @@ export type Database = {
             foreignKeyName: "warehouses_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
-            referencedRelation: "organization_summary"
-            referencedColumns: ["organization_id"]
-          },
-          {
-            foreignKeyName: "warehouses_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -665,17 +496,7 @@ export type Database = {
       }
     }
     Views: {
-      organization_summary: {
-        Row: {
-          last_order_date: string | null
-          organization_id: string | null
-          organization_name: string | null
-          total_items: number | null
-          total_orders: number | null
-          total_users: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       add_item_without_audit:
