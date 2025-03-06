@@ -45,22 +45,36 @@ const UserManagement = () => {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch Users
+  // Fetch Users (Fix email retrieval)
   const { data: users = [], isLoading: isLoadingUsers, error: usersError } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, email, role, organization_id")
-        .order("created_at", { ascending: false });
+        .select("id, first_name, last_name, role, organization_id");
 
       if (error) {
         console.error("Error fetching users:", error);
         throw error;
       }
 
-      console.log("Fetched users:", data);
-      return data;
+      // Fetch emails separately
+      const usersWithEmails = await Promise.all(
+        data.map(async (user) => {
+          const { data: emailData, error: emailError } = await supabase
+            .from("auth.users")
+            .select("email")
+            .eq("id", user.id)
+            .single();
+          return {
+            ...user,
+            email: emailData?.email || "Unknown",
+          };
+        })
+      );
+
+      console.log("Fetched users:", usersWithEmails);
+      return usersWithEmails;
     }
   });
 
