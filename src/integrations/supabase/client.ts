@@ -8,16 +8,43 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 export const supportedCurrencies = {
   MAD: {
     symbol: 'MAD',
-    name: 'Moroccan Dirham'
+    name: 'Moroccan Dirham',
+    locales: {
+      en: 'en-MA',
+      fr: 'fr-MA',
+      ar: 'ar-MA'
+    }
   },
   EUR: {
     symbol: '€',
-    name: 'Euro'
+    name: 'Euro',
+    locales: {
+      en: 'en-FR',
+      fr: 'fr-FR',
+      ar: 'ar-FR'
+    }
   },
   USD: {
     symbol: '$',
-    name: 'US Dollar'
+    name: 'US Dollar',
+    locales: {
+      en: 'en-US',
+      fr: 'fr-US',
+      ar: 'ar-US'
+    }
   }
+};
+
+// Helper function to format currency values
+export const formatCurrency = (value: number, currencyCode: keyof typeof supportedCurrencies = 'MAD', language = 'en') => {
+  const currency = supportedCurrencies[currencyCode] || supportedCurrencies.MAD;
+  const locale = currency.locales[language as keyof typeof currency.locales] || 'en-US';
+  
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: currencyCode === 'MAD' ? 'MAD' : currencyCode,
+    currencyDisplay: 'symbol'
+  }).format(value);
 };
 
 // Create Supabase client with storage

@@ -284,6 +284,41 @@ export type Database = {
           },
         ]
       }
+      organization_summary: {
+        Row: {
+          last_order_date: string | null
+          organization_id: string
+          organization_name: string | null
+          total_items: number | null
+          total_orders: number | null
+          total_users: number | null
+        }
+        Insert: {
+          last_order_date?: string | null
+          organization_id: string
+          organization_name?: string | null
+          total_items?: number | null
+          total_orders?: number | null
+          total_users?: number | null
+        }
+        Update: {
+          last_order_date?: string | null
+          organization_id?: string
+          organization_name?: string | null
+          total_items?: number | null
+          total_orders?: number | null
+          total_users?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_summary_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string | null
@@ -559,6 +594,18 @@ export type Database = {
           org_id: string
         }
         Returns: undefined
+      }
+      get_users_with_emails: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          first_name: string
+          last_name: string
+          email: string
+          role: string
+          organization_id: string
+          created_at: string
+        }[]
       }
       refresh_organization_summary: {
         Args: Record<PropertyKey, never>
