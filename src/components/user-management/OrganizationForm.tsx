@@ -67,12 +67,19 @@ export const OrganizationForm = ({
       if (onSubmit) {
         await onSubmit({ name });
       } else {
+        console.log("Creating organization with name:", name);
         // Direct Supabase insertion if no onSubmit is provided
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("organizations")
-          .insert({ name });
+          .insert({ name })
+          .select();
           
-        if (error) throw error;
+        if (error) {
+          console.error("Error inserting organization:", error);
+          throw error;
+        }
+        
+        console.log("Organization created successfully:", data);
         
         // Invalidate the organizations query to refresh the list
         await queryClient.invalidateQueries({ queryKey: ["organizations"] });

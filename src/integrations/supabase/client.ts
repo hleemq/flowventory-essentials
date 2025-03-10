@@ -57,9 +57,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// Fetch organizations with proper error handling
+// Improved fetch organizations function with better error handling
 export const fetchOrganizations = async () => {
   try {
+    console.log("Fetching organizations...");
     const { data, error } = await supabase
       .from("organizations")
       .select("id, name, is_active, created_at")
@@ -70,6 +71,7 @@ export const fetchOrganizations = async () => {
       throw error;
     }
 
+    console.log("Successfully fetched organizations:", data);
     return data || [];
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);
