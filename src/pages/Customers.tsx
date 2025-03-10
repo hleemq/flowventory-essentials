@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Card } from "@/components/ui/card";
@@ -53,6 +52,7 @@ const translations = {
     deleteError: "Error deleting customer",
     addSuccess: "Customer added successfully",
     addError: "Error adding customer",
+    update: "Update",
     updateSuccess: "Customer updated successfully",
     updateError: "Error updating customer"
   },
@@ -83,6 +83,7 @@ const translations = {
     deleteError: "Erreur lors de la suppression du client",
     addSuccess: "Client ajouté avec succès",
     addError: "Erreur lors de l'ajout du client",
+    update: "Mettre à jour",
     updateSuccess: "Client mis à jour avec succès",
     updateError: "Erreur lors de la mise à jour du client"
   },
@@ -113,6 +114,7 @@ const translations = {
     deleteError: "خطأ في حذف العميل",
     addSuccess: "تمت إضافة العميل بنجاح",
     addError: "خطأ في إضافة العميل",
+    update: "تحديث",
     updateSuccess: "تم تحديث العميل بنجاح",
     updateError: "خطأ في تحديث العميل"
   }
@@ -154,16 +156,13 @@ const Customers = () => {
     setError(null);
     
     try {
-      // Fetch customers from Supabase
       const { data: customersData, error: customersError } = await supabase
         .from('customers')
         .select('*');
         
       if (customersError) throw customersError;
 
-      // Fetch orders for each customer to get total orders and amounts
       const customersWithOrdersData = await Promise.all((customersData || []).map(async (customer) => {
-        // Get orders for this customer
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .select('id, total_amount, created_at')
@@ -212,7 +211,6 @@ const Customers = () => {
   const handleAddOrUpdateCustomer = async () => {
     try {
       if (isEditMode && selectedCustomer) {
-        // Update existing customer
         const { error } = await supabase
           .from('customers')
           .update({
@@ -227,7 +225,6 @@ const Customers = () => {
         
         toast.success(t.updateSuccess);
       } else {
-        // Add new customer
         const { error } = await supabase
           .from('customers')
           .insert([
@@ -244,7 +241,6 @@ const Customers = () => {
         toast.success(t.addSuccess);
       }
       
-      // Reset form and refresh data
       setIsDialogOpen(false);
       setNewCustomer({ name: "", email: "", phone: "", address: "" });
       setIsEditMode(false);
@@ -448,7 +444,6 @@ const Customers = () => {
         )}
       </Card>
 
-      {/* Delete Confirmation Dialog */}
       {isDeleteConfirmOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-background p-6 rounded-lg shadow-lg max-w-md w-full">

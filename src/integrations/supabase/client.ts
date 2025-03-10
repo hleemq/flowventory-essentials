@@ -57,6 +57,23 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+// Helper for running custom SQL queries (since raw method is not available)
+export const executeRawQuery = async (query: string, params?: any[]) => {
+  try {
+    // Use rpc function to execute raw SQL safely
+    const { data, error } = await supabase.rpc('execute_sql', { 
+      sql_query: query,
+      params: params || []
+    });
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error executing raw query:', error);
+    return { data: null, error };
+  }
+};
+
 // Initialize storage bucket if not exists
 (async () => {
   try {
