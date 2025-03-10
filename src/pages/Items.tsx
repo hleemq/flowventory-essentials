@@ -190,8 +190,8 @@ const Items = () => {
 
     try {
       let imageUrl = newItem.image as string;
-      if (newItem.image instanceof File) {
-        imageUrl = await uploadImage(newItem.image);
+      if (typeof newItem.image !== 'string') {
+        imageUrl = await uploadImage(newItem.image as File);
       }
 
       const { data, error } = await supabase.rpc('add_item_without_audit', {
@@ -254,8 +254,8 @@ const Items = () => {
 
     try {
       let imageUrl = newItem.image as string;
-      if (newItem.image instanceof File) {
-        imageUrl = await uploadImage(newItem.image);
+      if (typeof newItem.image !== 'string') {
+        imageUrl = await uploadImage(newItem.image as File);
       }
 
       const { error } = await supabase
@@ -343,38 +343,43 @@ const Items = () => {
   };
 
   const openEditDialog = (item: Item) => {
-    const { data, error } = supabase
-      .from('items')
-      .select('*')
-      .eq('id', item.id)
-      .single();
+    try {
+      // Use a promise to handle the result of the select query
+      supabase
+        .from('items')
+        .select('*')
+        .eq('id', item.id)
+        .single()
+        .then(({ data: originalItem, error }) => {
+          if (error) {
+            console.error('Error fetching item for edit:', error);
+            toast.error("Failed to load item details");
+            return;
+          }
 
-    if (!data || error) {
-      console.error('Error fetching item for edit:', error);
-      toast.error("Failed to load item details");
-      return;
-    }
-
-    data.then((originalItem) => {
-      if (originalItem) {
-        setSelectedItem(item);
-        setImagePreview(originalItem.image || "/placeholder.svg");
-        setNewItem({
-          image: originalItem.image || "",
-          stockCode: originalItem.sku,
-          productName: originalItem.name,
-          boxes: originalItem.boxes,
-          unitsPerBox: originalItem.units_per_box,
-          boughtPrice: originalItem.bought_price,
-          shipmentFees: originalItem.shipment_fees,
-          sellingPrice: originalItem.selling_price,
-          warehouse: originalItem.warehouse_id,
-          lowStockThreshold: originalItem.low_stock_threshold,
-          currency: originalItem.currency || "MAD",
+          if (originalItem) {
+            setSelectedItem(item);
+            setImagePreview(originalItem.image || "/placeholder.svg");
+            setNewItem({
+              image: originalItem.image || "",
+              stockCode: originalItem.sku,
+              productName: originalItem.name,
+              boxes: originalItem.boxes,
+              unitsPerBox: originalItem.units_per_box,
+              boughtPrice: originalItem.bought_price,
+              shipmentFees: originalItem.shipment_fees,
+              sellingPrice: originalItem.selling_price,
+              warehouse: originalItem.warehouse_id,
+              lowStockThreshold: originalItem.low_stock_threshold,
+              currency: originalItem.currency || "MAD",
+            });
+            setDialogMode('edit');
+          }
         });
-        setDialogMode('edit');
-      }
-    });
+    } catch (error) {
+      console.error('Error in openEditDialog:', error);
+      toast.error("Failed to open edit dialog");
+    }
   };
 
   const openDeleteDialog = (item: Item) => {

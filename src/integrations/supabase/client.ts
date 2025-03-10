@@ -33,29 +33,20 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 // Initialize storage bucket if not exists
 (async () => {
   try {
-    // Check if the 'public' bucket exists
-    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-    
-    if (bucketError) {
-      console.error('Error checking storage buckets:', bucketError);
-      return;
-    }
-    
-    const publicBucketExists = buckets.some(bucket => bucket.name === 'public');
-    
-    if (!publicBucketExists) {
-      // Create the 'public' bucket with public access
-      const { error: createError } = await supabase.storage.createBucket('public', {
+    // Try to create a 'public' bucket (this may fail due to permissions, which is normal)
+    try {
+      const { data, error } = await supabase.storage.createBucket('public', {
         public: true,
         fileSizeLimit: 5 * 1024 * 1024, // 5MB size limit
         allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
       });
       
-      if (createError) {
-        console.error('Error creating public bucket:', createError);
-      } else {
+      if (!error) {
         console.log('Public storage bucket created successfully');
       }
+    } catch (bucketError) {
+      // Bucket might already exist or we don't have permissions to create it
+      console.log('Note: Could not create public bucket, it might already exist.');
     }
   } catch (error) {
     console.error('Error initializing storage:', error);
