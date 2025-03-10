@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,21 +22,24 @@ const translations = {
     createOrganization: "Create Organization",
     organizationName: "Organization Name",
     success: "Organization created successfully",
-    error: "Failed to create organization"
+    error: "Failed to create organization",
+    organizationDescription: "Enter the details of the new organization"
   },
   fr: {
     addOrganization: "Ajouter une organisation",
     createOrganization: "Créer une organisation",
     organizationName: "Nom de l'organisation",
     success: "Organisation créée avec succès",
-    error: "Échec de la création de l'organisation"
+    error: "Échec de la création de l'organisation",
+    organizationDescription: "Entrez les détails de la nouvelle organisation"
   },
   ar: {
     addOrganization: "إضافة مؤسسة",
     createOrganization: "إنشاء مؤسسة",
     organizationName: "اسم المؤسسة",
     success: "تم إنشاء المؤسسة بنجاح",
-    error: "فشل في إنشاء المؤسسة"
+    error: "فشل في إنشاء المؤسسة",
+    organizationDescription: "أدخل تفاصيل المؤسسة الجديدة"
   }
 };
 
@@ -96,6 +100,7 @@ export const OrganizationForm = ({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t.createOrganization}</DialogTitle>
+          <DialogDescription>{t.organizationDescription}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

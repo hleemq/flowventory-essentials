@@ -57,6 +57,26 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+// Fetch organizations with proper error handling
+export const fetchOrganizations = async () => {
+  try {
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("id, name, is_active, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching organizations:", error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("Error in fetchOrganizations:", error);
+    throw error;
+  }
+};
+
 // Helper for running custom SQL queries (since raw method is not available)
 export const executeRawQuery = async (query: string, params?: any[]) => {
   try {

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, fetchOrganizations } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserForm } from "@/components/user-management/UserForm";
 import { OrganizationForm } from "@/components/user-management/OrganizationForm";
@@ -201,25 +201,12 @@ const UserManagement = () => {
     }
   });
 
-  // Fetch Organizations
+  // Fetch Organizations - Modified to use the better fetchOrganizations helper
   const { data: organizations = [], isLoading: isLoadingOrgs, error: orgsError } = useQuery({
     queryKey: ["organizations"],
-    queryFn: async () => {
-      try {
-        const { data, error } = await supabase
-          .from("organizations")
-          .select("id, name, is_active, created_at")
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        console.log("Fetched organizations:", data);
-        return data || [];
-      } catch (error) {
-        console.error("Error fetching organizations:", error);
-        throw error;
-      }
-    }
+    queryFn: fetchOrganizations,
+    refetchOnMount: true, // Make sure we fetch on component mount
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   // Skip Organization Summary If It Doesn't Exist
@@ -286,6 +273,16 @@ const UserManagement = () => {
     }
   };
 
+  // Force organizations refresh on mount
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["organizations"] });
+  }, [queryClient]);
+
+  // Debug log for organizations
+  useEffect(() => {
+    console.log("Current organizations in state:", organizations);
+  }, [organizations]);
+
   return (
     <div className="container py-8 space-y-8" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between">
@@ -298,7 +295,27 @@ const UserManagement = () => {
       {/* Forms */}
       <div className="flex justify-between items-center gap-4">
         <UserForm onSubmit={() => refreshData()} buttonText={t.addUser} />
-        <OrganizationForm onSubmit={() => refreshData()} buttonText={t.addOrganization} />
+        <OrganizationForm 
+          onSubmit={async ({ name }) => {
+            try {
+              // Create organization
+              const { data, error } = await supabase
+                .from("organizations")
+                .insert({ name })
+                .select();
+              
+              if (error) throw error;
+              
+              // Force refresh
+              await refreshData();
+              toast.success("Organization created successfully");
+            } catch (err) {
+              console.error("Error creating organization:", err);
+              toast.error("Failed to create organization");
+            }
+          }} 
+          buttonText={t.addOrganization} 
+        />
       </div>
 
       {/* Refresh Button */}
