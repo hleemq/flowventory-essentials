@@ -1,10 +1,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+// Supabase connection credentials
+// Note: In production, these should ideally be in environment variables
 const supabaseUrl = 'https://gwdbvsruaazcwwkzmmdr.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3ZGJ2c3J1YWF6Y3d3a3ptbWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkxMTMxMzMsImV4cCI6MjA1NDY4OTEzM30.02DIsfee8mN4T_EHLtEVaIuO0uoxBWX_S23eMhHmCCY';
 
-// Support for multi-currency and internationalization
+// Define supported currencies with their symbols and localization settings
+// This allows the app to properly format monetary values based on user preferences
 export const supportedCurrencies = {
   MAD: {
     symbol: 'MAD',
@@ -35,11 +38,22 @@ export const supportedCurrencies = {
   }
 };
 
-// Helper function to format currency values
+/**
+ * Formats a numeric value into the specified currency and language format
+ * 
+ * @param value - The numeric value to format
+ * @param currencyCode - Currency code (MAD, EUR, USD)
+ * @param language - Language code for localization (en, fr, ar)
+ * @returns Formatted currency string
+ */
 export const formatCurrency = (value: number, currencyCode: keyof typeof supportedCurrencies = 'MAD', language = 'en') => {
+  // Get currency configuration or default to MAD if not supported
   const currency = supportedCurrencies[currencyCode] || supportedCurrencies.MAD;
+  
+  // Get locale based on language or default to en-US
   const locale = currency.locales[language as keyof typeof currency.locales] || 'en-US';
   
+  // Use Intl.NumberFormat for standardized currency formatting
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currencyCode === 'MAD' ? 'MAD' : currencyCode,
@@ -47,17 +61,21 @@ export const formatCurrency = (value: number, currencyCode: keyof typeof support
   }).format(value);
 };
 
-// Create Supabase client with storage
+// Initialize Supabase client with persistent authentication
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    persistSession: true
+    persistSession: true  // Keep user logged in between page refreshes
   },
   global: {
-    fetch: fetch
+    fetch: fetch  // Use the browser's fetch implementation
   }
 });
 
-// Improved fetch organizations function with better error handling
+/**
+ * Fetches organizations with improved error handling
+ * 
+ * @returns Promise resolving to array of organizations
+ */
 export const fetchOrganizations = async () => {
   try {
     console.log("Fetching organizations...");
@@ -75,11 +93,18 @@ export const fetchOrganizations = async () => {
     return data || [];
   } catch (error) {
     console.error("Error in fetchOrganizations:", error);
-    throw error;
+    throw error;  // Re-throw to allow handling at call site
   }
 };
 
-// Helper for running custom SQL queries (since raw method is not available)
+/**
+ * Execute raw SQL queries safely through RPC
+ * Used because Supabase JS client doesn't expose raw query method directly
+ * 
+ * @param query - SQL query string
+ * @param params - Array of parameters for the query
+ * @returns Query result or error
+ */
 export const executeRawQuery = async (query: string, params?: any[]) => {
   try {
     // Use rpc function to execute raw SQL safely
@@ -96,15 +121,15 @@ export const executeRawQuery = async (query: string, params?: any[]) => {
   }
 };
 
-// Initialize storage bucket if not exists
+// Self-executing function to initialize storage buckets when client is loaded
 (async () => {
   try {
-    // Try to create a 'public' bucket (this may fail due to permissions, which is normal)
+    // Try to create a 'public' bucket for storing images and files
     try {
       const { data, error } = await supabase.storage.createBucket('public', {
-        public: true,
+        public: true,  // Allow public access to files
         fileSizeLimit: 5 * 1024 * 1024, // 5MB size limit
-        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp']
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'] // Restrict file types
       });
       
       if (!error) {
@@ -112,6 +137,7 @@ export const executeRawQuery = async (query: string, params?: any[]) => {
       }
     } catch (bucketError) {
       // Bucket might already exist or we don't have permissions to create it
+      // This is a normal condition if the bucket already exists
       console.log('Note: Could not create public bucket, it might already exist.');
     }
   } catch (error) {

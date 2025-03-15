@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// Type definitions for items and related entities
 interface Item {
   id: string;
   image: string;
@@ -39,11 +40,23 @@ interface NewItem {
   currency: string;
 }
 
+/**
+ * Custom hook for managing inventory items
+ * Provides functionality to fetch, filter, and manage items and warehouses
+ * 
+ * @param isDeleted - When true, fetch only deleted items (trash bin)
+ * @returns Object with items data and management functions
+ */
 export const useItems = (isDeleted = false) => {
+  // State management for items, warehouses and loading status
   const [items, setItems] = useState<Item[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  /**
+   * Fetches warehouse data from the database
+   * Used for warehouse selection in item forms and filtering
+   */
   const fetchWarehouses = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -59,9 +72,14 @@ export const useItems = (isDeleted = false) => {
     }
   }, []);
 
+  /**
+   * Fetches item data from the database with related warehouse information
+   * Filters items based on deletion status (for trash bin functionality)
+   */
   const fetchItems = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Build query with join to warehouses table
       const query = supabase
         .from('items')
         .select(`
@@ -83,6 +101,7 @@ export const useItems = (isDeleted = false) => {
           )
         `);
       
+      // Filter based on deleted status
       if (isDeleted) {
         query.not('deleted_at', 'is', null);
       } else {
@@ -97,6 +116,7 @@ export const useItems = (isDeleted = false) => {
       
       const supabaseData = data as any[];
       
+      // Transform the data from database format to application format
       const formattedItems = (supabaseData || []).map((item) => {
         let warehouseName = '';
         
@@ -129,11 +149,20 @@ export const useItems = (isDeleted = false) => {
     }
   }, [isDeleted]);
 
+  /**
+   * Uploads an image file to Supabase storage
+   * Generates a random filename to avoid collisions
+   * 
+   * @param file - The file object to upload
+   * @returns URL of the uploaded file
+   */
   const uploadImage = async (file: File): Promise<string> => {
+    // Generate unique filename to prevent collisions
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
     const filePath = `items/${fileName}`;
     
+    // Upload to Supabase storage
     const { data, error } = await supabase.storage
       .from('public')
       .upload(filePath, file);
@@ -142,6 +171,7 @@ export const useItems = (isDeleted = false) => {
       throw error;
     }
     
+    // Get public URL for the uploaded file
     const { data: urlData } = supabase.storage
       .from('public')
       .getPublicUrl(filePath);
@@ -149,16 +179,21 @@ export const useItems = (isDeleted = false) => {
     return urlData.publicUrl;
   };
 
+  // Initial data fetch and realtime subscriptions
   useEffect(() => {
     fetchWarehouses();
     fetchItems();
 
+    // Set up realtime subscriptions to database changes
+    // This allows the UI to update automatically when data changes
+
+    // Listen for warehouse table changes
     const warehouseChannel = supabase
       .channel('warehouse-updates')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: '*',  // Listen for all events (insert, update, delete)
           schema: 'public',
           table: 'warehouses'
         },
@@ -168,6 +203,7 @@ export const useItems = (isDeleted = false) => {
       )
       .subscribe();
 
+    // Listen for items table changes
     const itemsChannel = supabase
       .channel('items-updates')
       .on(
@@ -183,6 +219,7 @@ export const useItems = (isDeleted = false) => {
       )
       .subscribe();
 
+    // Listen for settings table changes
     const settingsChannel = supabase
       .channel('settings-updates')
       .on(
@@ -198,6 +235,7 @@ export const useItems = (isDeleted = false) => {
       )
       .subscribe();
 
+    // Listen for notifications
     const notificationsChannel = supabase
       .channel('notifications-updates')
       .on(
@@ -213,6 +251,7 @@ export const useItems = (isDeleted = false) => {
       )
       .subscribe();
 
+    // Clean up subscriptions when component unmounts
     return () => {
       supabase.removeChannel(warehouseChannel);
       supabase.removeChannel(itemsChannel);
@@ -221,6 +260,7 @@ export const useItems = (isDeleted = false) => {
     };
   }, [fetchItems, fetchWarehouses]);
 
+  // Return values and functions for component use
   return {
     items,
     warehouses,
