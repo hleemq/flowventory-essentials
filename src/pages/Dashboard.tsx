@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import {
   Card,
@@ -6,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatCurrency } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/formatters";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,12 @@ import {
   ShoppingCart,
   DollarSign,
   Percent,
+  Users,
+  BarChart,
+  Activity
 } from "lucide-react";
+import PageContainer from "@/components/layout/PageContainer";
+import CardGrid from "@/components/layout/CardGrid";
 
 const translations = {
   en: {
@@ -143,23 +149,23 @@ const Dashboard = () => {
   }, []);
 
   if (isLoading) {
-    return <div>Loading dashboard data...</div>;
+    return <PageContainer><div>Loading dashboard data...</div></PageContainer>;
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return <PageContainer><div>Error: {error}</div></PageContainer>;
   }
 
   return (
-    <div className="container py-8" dir={language === "ar" ? "rtl" : "ltr"}>
-      <div className="space-y-4">
+    <PageContainer>
+      <div className="space-y-4 mb-8">
         <h1 className="text-3xl font-bold">{t.dashboardTitle}</h1>
         <p className="text-muted-foreground">
           {t.welcomeMessage} {user?.email}
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-8">
+      <CardGrid columns={4} gap="md">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{t.totalRevenue}</CardTitle>
@@ -228,12 +234,15 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </CardGrid>
 
-      <div className="grid gap-4 md:grid-cols-2 mt-8">
+      <CardGrid columns={2} gap="md" className="mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>{t.customers}</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {t.customers}
+            </CardTitle>
             <CardDescription>{t.totalCustomers}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -248,8 +257,44 @@ const Dashboard = () => {
             </p>
           </CardContent>
         </Card>
-      </div>
-    </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart className="h-5 w-5" />
+              {t.revenueGrowth}
+            </CardTitle>
+            <CardDescription>Monthly analysis</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="text-2xl font-bold flex items-center">
+                {dashboardData?.revenue_growth > 0 ? (
+                  <>
+                    <ArrowUp className="h-5 w-5 text-green-500 mr-1" />
+                    {dashboardData?.revenue_growth}%
+                  </>
+                ) : (
+                  <>
+                    <ArrowDown className="h-5 w-5 text-red-500 mr-1" />
+                    {Math.abs(dashboardData?.revenue_growth || 0)}%
+                  </>
+                )}
+              </div>
+              <div className="h-10 flex items-end gap-1">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <div 
+                    key={i} 
+                    className="w-3 bg-primary/60 rounded-t"
+                    style={{ height: `${20 + Math.random() * 50}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </CardGrid>
+    </PageContainer>
   );
 };
 

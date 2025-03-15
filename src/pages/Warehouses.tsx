@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import PageContainer from "@/components/layout/PageContainer";
+import ItemsHeader from "@/components/items/ItemsHeader";
 
 const translations = {
   en: {
@@ -189,61 +191,14 @@ const Warehouses = () => {
   };
 
   return (
-    <div className="container py-8 animate-in">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold">{t.title}</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              {t.addWarehouse}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{t.addNewWarehouse}</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name" className="flex items-center gap-1">
-                  {t.name}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  placeholder={t.warehouseName}
-                  value={newWarehouse.name}
-                  onChange={(e) =>
-                    setNewWarehouse({ ...newWarehouse, name: e.target.value })
-                  }
-                  className={formErrors.name ? "border-red-500" : ""}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="location" className="flex items-center gap-1">
-                  {t.location}
-                  <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="location"
-                  placeholder={t.warehouseLocation}
-                  value={newWarehouse.location}
-                  onChange={(e) =>
-                    setNewWarehouse({ ...newWarehouse, location: e.target.value })
-                  }
-                  className={formErrors.location ? "border-red-500" : ""}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-4">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                {t.cancel}
-              </Button>
-              <Button onClick={handleAddWarehouse}>{t.addWarehouse}</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <PageContainer>
+      <ItemsHeader
+        title={t.title}
+        description={t.description}
+        addButtonLabel={t.addWarehouse}
+        onAddClick={() => setIsDialogOpen(true)}
+        language={language}
+      />
 
       <Card className="p-6">
         <Table>
@@ -280,7 +235,53 @@ const Warehouses = () => {
           </TableBody>
         </Table>
       </Card>
-    </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t.addNewWarehouse}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name" className="flex items-center gap-1">
+                {t.name}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                placeholder={t.warehouseName}
+                value={newWarehouse.name}
+                onChange={(e) =>
+                  setNewWarehouse({ ...newWarehouse, name: e.target.value })
+                }
+                className={formErrors.name ? "border-red-500" : ""}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="location" className="flex items-center gap-1">
+                {t.location}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="location"
+                placeholder={t.warehouseLocation}
+                value={newWarehouse.location}
+                onChange={(e) =>
+                  setNewWarehouse({ ...newWarehouse, location: e.target.value })
+                }
+                className={formErrors.location ? "border-red-500" : ""}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-4">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              {t.cancel}
+            </Button>
+            <Button onClick={handleAddWarehouse}>{t.addWarehouse}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </PageContainer>
   );
 };
 

@@ -24,6 +24,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
+import PageContainer from "@/components/layout/PageContainer";
+import CardGrid from "@/components/layout/CardGrid";
 
 const translations = {
   en: {
@@ -355,14 +357,14 @@ const Settings = () => {
   };
 
   if (loading) {
-    return <div className="container py-8">{t.loading}</div>;
+    return <PageContainer>{t.loading}</PageContainer>;
   }
 
   return (
-    <div className="container py-8 space-y-8">
-      <h1 className="text-4xl font-bold">{t.title}</h1>
+    <PageContainer>
+      <h1 className="text-4xl font-bold mb-8">{t.title}</h1>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <CardGrid columns={2} gap="md">
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Coins className="h-5 w-5" />
@@ -464,47 +466,47 @@ const Settings = () => {
             </div>
           </div>
         </Card>
+      </CardGrid>
 
-        <Card className="p-6 md:col-span-2">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <ScrollText className="h-5 w-5" />
-            {t.systemLogs}
-          </h2>
-          <div className="overflow-auto max-h-[300px] rounded border">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-muted">
-                <tr>
-                  <th className="px-4 py-2 text-start">Action</th>
-                  <th className="px-4 py-2 text-start">Details</th>
-                  <th className="px-4 py-2 text-start">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {systemLogs.length > 0 ? (
-                  systemLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td className="px-4 py-2">{log.action}</td>
-                      <td className="px-4 py-2">
-                        {log.details ? JSON.stringify(log.details) : '-'}
-                      </td>
-                      <td className="px-4 py-2">
-                        {new Date(log.created_at).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-2 text-center text-muted-foreground">
-                      {t.noLogs}
+      <Card className="p-6 mt-8">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <ScrollText className="h-5 w-5" />
+          {t.systemLogs}
+        </h2>
+        <div className="overflow-auto max-h-[300px] rounded border">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-muted">
+              <tr>
+                <th className="px-4 py-2 text-start">Action</th>
+                <th className="px-4 py-2 text-start">Details</th>
+                <th className="px-4 py-2 text-start">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {systemLogs.length > 0 ? (
+                systemLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td className="px-4 py-2">{log.action}</td>
+                    <td className="px-4 py-2">
+                      {log.details ? JSON.stringify(log.details) : '-'}
+                    </td>
+                    <td className="px-4 py-2">
+                      {new Date(log.created_at).toLocaleString()}
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </div>
-    </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="px-4 py-2 text-center text-muted-foreground">
+                    {t.noLogs}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </PageContainer>
   );
 };
 
